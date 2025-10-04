@@ -1,0 +1,29 @@
+# Build artifacts
+build/
+Debug/
+Release/
+*.o
+*.d
+*.elf
+*.map
+*.hex
+*.bin
+*.srec
+*.lst
+*.su
+
+# STM32CubeIDE specific files and folders
+.settings/
+.project
+.cproject
+.mxproject
+.launch
+.metadata/
+
+# Cube-generated backups
+*~
+*.swp
+
+# System files
+.DS_Store
+Thumbs.db
