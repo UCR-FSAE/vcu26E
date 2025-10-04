@@ -26,9 +26,8 @@ void Inverter_Init(void) {
   * @brief  Process Inverter main functionality (to be called periodically)
   * @retval None
   */
-void Inverter_Process(void) {
-
-
+void Inverter_Process(float torqueCommand) {
+	Inverter_TransmitCANMessage((uint16_t) torqueCommand, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE);
 }
 
 /**

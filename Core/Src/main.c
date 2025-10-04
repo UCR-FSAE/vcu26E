@@ -75,7 +75,6 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 /* USER CODE BEGIN PV */
 typedef enum {
 	Init,
-	ADC_Collection,
 	Inverter_Idle,
 	Inverter_Slow,
 	Inverter_Medium,
@@ -88,7 +87,7 @@ InverterState prevState;
 uint32_t appsRaw1;
 float appsGradient = 0.0;
 
-
+static uint32_t lastStateChangeTime = 0;
 
 
 /* USER CODE END PV */
@@ -169,92 +168,64 @@ int main(void)
 //  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
   HAL_ADC_Start(&hadc1);
 
+  Inverter_Init();
+  HAL_Delay(1000);
+  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+  HAL_Delay(1000);
+  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+  prevState = Init;
+  currentState = Inverter_Idle;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  switch (currentState) {
-	  	  case Init:
-	  		  Inverter_Init();
-	  		  HAL_Delay(1000);
-	  		  prevState = Init;
-	  		  currentState = ADC_Collection;
-			  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-			  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-			  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-	  		  HAL_Delay(1000);
-			  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-			  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-			  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-	  		  break;
-	  	  case ADC_Collection:
-	  		  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
-	  		  else {
-		  		  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-	  				  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-	  				  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-	  				  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-		  			  appsRaw1 = HAL_ADC_GetValue(&hadc1);
-		  			  appsGradient = ((float) appsRaw1 / (float) 4096) * 100;
-		  			  if (appsGradient >= 0.0 && appsGradient <= 30.0) {
-		  				  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-		  				  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-		  				  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-	//	  				  currentState = Inverter_Idle;
-		  			  }
-		  			  else if (appsGradient > 30.0 && appsGradient <= 50.0) {
-		  				  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-		  				  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-		  				  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-	//	  				  currentState = Inverter_Slow;
-		  			  }
-		  			  else if (appsGradient > 50.0 && appsGradient <= 80.0) {
-		  				  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-		  				  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-		  				  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-	//	  				  currentState = Inverter_Medium;
-		  			  }
-		  			  else if (appsGradient > 80.0 && appsGradient <= 100.0) {
-		  				  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-		  				  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-		  				  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-	//	  				  currentState = Inverter_Fast;
-		  			  }
-		  			  else {
-		  				  currentState = ADC_Collection;
-		  			  }
-		  		  }
-		  		  else {
-		  			  appsGradient = 0.0;
-		  			  currentState = ADC_Collection;
-		  		  }
-	  		  }
+	  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
+	  else {
+		  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+			  appsRaw1 = HAL_ADC_GetValue(&hadc1);
+			  appsGradient = ((float) appsRaw1 / (float) 4096) * 100;
 
-  			  prevState = ADC_Collection;
-	  		  break;
+			  if (appsGradient >= 0.0 && appsGradient <= 30.0) { currentState = Inverter_Idle; }
+  			  else { currentState = Inverter_Fast; }
+		  }
+	  }
+
+	  switch (currentState) {
 	  	  case Inverter_Idle:
 	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+	  		  // stop the motor from spinning
+	  		  if (prevState != currentState) {
+	  			  Inverter_Process(0.0);
+	  			  prevState = currentState;
+	  		  }
+
+	  		  // update states
+
 	  		  break;
 
-	  	  case Inverter_Slow:
-	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-	  		  break;
-	  	  case Inverter_Medium:
-	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-	  		  break;
 	  	  case Inverter_Fast:
-	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+
+	  		  // get the motor spinning
+	  		  if (prevState != currentState) {
+	  			  Inverter_Process(400.0);
+	  			  prevState = currentState;
+	  		  }
+	  		  // update states
 	  		  break;
 	  }
 
-
-
-
-
-	  Inverter_Process();
-	  HAL_Delay(1000);
+	  HAL_Delay(10);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

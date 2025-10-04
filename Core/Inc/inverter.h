@@ -13,7 +13,7 @@
 
 
 void Inverter_Init(void);
-void Inverter_Process(void);
+void Inverter_Process(float torqueCommand);
 void Inverter_EnableInverter(void);
 void Inverter_DisableInverter(void);
 void Inverter_ClearInverterFaults(void);
