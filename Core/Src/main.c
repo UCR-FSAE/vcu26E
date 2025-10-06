@@ -61,6 +61,7 @@ ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecr
 ETH_TxPacketConfig TxConfig;
 
 ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc3;
 
 CAN_HandleTypeDef hcan1;
 
@@ -84,11 +85,11 @@ typedef enum {
 InverterState currentState = Init;
 InverterState prevState;
 
-uint32_t appsRaw1;
+uint32_t appsRaw;
 float appsGradient = 0.0;
 
-static uint32_t lastStateChangeTime = 0;
-
+uint32_t bseRaw;
+float bseGradient = 0.0;
 
 /* USER CODE END PV */
 
@@ -101,6 +102,7 @@ static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_CAN1_Init(void);
+static void MX_ADC3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -162,11 +164,13 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   MX_ADC1_Init();
   MX_CAN1_Init();
+  MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
 
 //  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
   HAL_ADC_Start(&hadc1);
+  HAL_ADC_Start(&hadc3);
 
   Inverter_Init();
   HAL_Delay(1000);
@@ -185,14 +189,31 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
-	  else {
-		  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-			  appsRaw1 = HAL_ADC_GetValue(&hadc1);
-			  appsGradient = ((float) appsRaw1 / (float) 4096) * 100;
+	  // ADC Collection
 
-			  if (appsGradient >= 0.0 && appsGradient <= 30.0) { currentState = Inverter_Idle; }
-  			  else { currentState = Inverter_Fast; }
+	  // check brakes first
+	  if (HAL_ADC_Start(&hadc3) != HAL_OK) { Error_Handler(); }
+	  else {
+		  if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
+			  bseRaw = HAL_ADC_GetValue(&hadc3);
+			  bseGradient = ((float) bseRaw / (float) 4096) * 100;
+
+			  if (bseGradient >= 90.0 && bseGradient <= 100.0) { currentState = Inverter_Idle; }
+			  // brake not triggered, should move to check accelerator
+			  else {
+				  // check accelerator
+				  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
+				  else {
+					  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+						  appsRaw = HAL_ADC_GetValue(&hadc1);
+						  appsGradient = ((float) appsRaw / (float) 4096) * 100;
+
+						  if (appsGradient >= 0.0 && appsGradient <= 30.0) { currentState = Inverter_Idle; }
+			  			  else { currentState = Inverter_Fast; }
+					  }
+				  }
+			  }
+
 		  }
 	  }
 
@@ -331,6 +352,58 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief ADC3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC3_Init(void)
+{
+
+  /* USER CODE BEGIN ADC3_Init 0 */
+
+  /* USER CODE END ADC3_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC3_Init 1 */
+
+  /* USER CODE END ADC3_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc3.Instance = ADC3;
+  hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc3.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc3.Init.ContinuousConvMode = ENABLE;
+  hadc3.Init.DiscontinuousConvMode = DISABLE;
+  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc3.Init.NbrOfConversion = 1;
+  hadc3.Init.DMAContinuousRequests = DISABLE;
+  hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC3_Init 2 */
+
+  /* USER CODE END ADC3_Init 2 */
 
 }
 
@@ -567,6 +640,7 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
