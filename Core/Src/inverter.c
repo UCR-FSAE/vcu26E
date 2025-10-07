@@ -7,21 +7,6 @@
 
 #include "inverter.h"
 
-uint32_t appsRaw1;
-uint32_t appsRaw1Max;
-uint32_t appsRaw1Min;
-
-uint32_t appsRaw2;
-uint32_t appsRaw2Max;
-uint32_t appsRaw2Min;
-
-uint32_t appsCalculated;
-
-float appsConverted1 = 0.0f;
-float appsConverted2 = 0.0f;
-
-extern ADC_HandleTypeDef hadc1;
-
 extern CAN_HandleTypeDef hcan1;
 static uint16_t torqueCommand = 0;
 static uint16_t prevTorqueCommand = 0;
@@ -41,44 +26,8 @@ void Inverter_Init(void) {
   * @brief  Process Inverter main functionality (to be called periodically)
   * @retval None
   */
-void Inverter_Process(void) {
-	// ADC pedal readings
-	if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
-
-	if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-		appsRaw1 = HAL_ADC_GetValue(&hadc1);
-		appsRaw2 = HAL_ADC_GetValue(&hadc1);
-	}
-	else {
-		appsRaw1 = 0;
-		appsRaw2 = 0;
-		HAL_ADC_Stop(&hadc1);
-	}
-
-	appsConverted1 = (float)(appsRaw1)/ (float)(4096);
-	appsConverted2 = (float)(appsRaw2) / (float)(4096);
-
-	appsCalculated = ((appsConverted1 + appsConverted2) / 2);
-
-
-	if (appsCalculated >= 0.4 && appsCalculated <= 1.0) {
-//		if (torqueCommand == 0) { Inverter_TransmitCANMessage(0, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_DISABLE); }
-//		else { Inverter_TransmitCANMessage(400, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE); }
-		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-		Inverter_TransmitCANMessage(400, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE);
-	}
-	else if (appsCalculated >= 0.0 && appsCalculated <= 0.3) {
-		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-		Inverter_TransmitCANMessage(0, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE);
-	}
-	else {
-		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-	}
-
-
+void Inverter_Process(float torqueCommand) {
+	Inverter_TransmitCANMessage((uint16_t) torqueCommand, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE);
 }
 
 /**
@@ -126,10 +75,10 @@ void Inverter_TransmitCANMessage(uint16_t torque, uint8_t direction, uint8_t inv
 	status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
 
 	if (status != HAL_OK) {
-		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 	    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) { Error_Handler(); }
 	}
-	else { HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET); }
+//	else { HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET); }
   }
 }
 

@@ -73,6 +73,22 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
+typedef enum {
+	Init,
+	Inverter_Idle,
+	Inverter_Slow,
+	Inverter_Medium,
+	Inverter_Fast
+} InverterState;
+
+InverterState currentState = Init;
+InverterState prevState;
+
+uint32_t appsRaw1;
+float appsGradient = 0.0;
+
+static uint32_t lastStateChangeTime = 0;
+
 
 /* USER CODE END PV */
 
@@ -148,23 +164,68 @@ int main(void)
   MX_CAN1_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
-  Inverter_Init();
-  HAL_Delay(1000);
 
-  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
-
+//  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
   HAL_ADC_Start(&hadc1);
 
-  // inverter initialization
-
+  Inverter_Init();
+  HAL_Delay(1000);
+  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+  HAL_Delay(1000);
+  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+  prevState = Init;
+  currentState = Inverter_Idle;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  Inverter_Process();
-	  HAL_Delay(1000);
+	  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
+	  else {
+		  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+			  appsRaw1 = HAL_ADC_GetValue(&hadc1);
+			  appsGradient = ((float) appsRaw1 / (float) 4096) * 100;
+
+			  if (appsGradient >= 0.0 && appsGradient <= 30.0) { currentState = Inverter_Idle; }
+  			  else { currentState = Inverter_Fast; }
+		  }
+	  }
+
+	  switch (currentState) {
+	  	  case Inverter_Idle:
+	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+	  		  // stop the motor from spinning
+	  		  if (prevState != currentState) {
+	  			  Inverter_Process(0.0);
+	  			  prevState = currentState;
+	  		  }
+
+	  		  // update states
+
+	  		  break;
+
+	  	  case Inverter_Fast:
+	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+	  		  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+
+	  		  // get the motor spinning
+	  		  if (prevState != currentState) {
+	  			  Inverter_Process(400.0);
+	  			  prevState = currentState;
+	  		  }
+	  		  // update states
+	  		  break;
+	  }
+
+	  HAL_Delay(10);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -245,12 +306,12 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -260,17 +321,9 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
