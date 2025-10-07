@@ -12,14 +12,6 @@ Release/
 *.lst
 *.su
 
-# STM32CubeIDE specific files and folders
-.settings/
-.project
-.cproject
-.mxproject
-.launch
-.metadata/
-
 # Cube-generated backups
 *~
 *.swp
