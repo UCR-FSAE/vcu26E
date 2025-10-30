@@ -61,7 +61,6 @@ ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecr
 ETH_TxPacketConfig TxConfig;
 
 ADC_HandleTypeDef hadc1;
-ADC_HandleTypeDef hadc3;
 
 CAN_HandleTypeDef hcan1;
 
@@ -102,7 +101,6 @@ static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_CAN1_Init(void);
-static void MX_ADC3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -164,13 +162,12 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   MX_ADC1_Init();
   MX_CAN1_Init();
-  MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
 
 //  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
   HAL_ADC_Start(&hadc1);
-  HAL_ADC_Start(&hadc3);
+//  HAL_ADC_Start(&hadc3);
 
   Inverter_Init();
   HAL_Delay(1000);
@@ -189,60 +186,50 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  Inverter_EnableInverter();
 	  // ADC Collection
 
 	  // check brakes first
-	  if (HAL_ADC_Start(&hadc3) != HAL_OK) { Error_Handler(); }
+//	  if (HAL_ADC_Start(&hadc3) != HAL_OK) { Error_Handler(); }
+//	  else {
+//		  if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
+//			  bseRaw = HAL_ADC_GetValue(&hadc3);
+//			  bseGradient = ((float) bseRaw / (float) 4096) * 100;
+//
+//			  if (bseGradient >= 90.0 && bseGradient <= 100.0) { currentState = Inverter_Idle; }
+//			  // brake not triggered, should move to check accelerator
+//			  else {
+	  // check accelerator
+	  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
 	  else {
-		  if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
-			  bseRaw = HAL_ADC_GetValue(&hadc3);
-			  bseGradient = ((float) bseRaw / (float) 4096) * 100;
+		  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+			  appsRaw = HAL_ADC_GetValue(&hadc1);
+			  appsGradient = ((float) appsRaw / (float) 4096) * 100;
 
-			  if (bseGradient >= 90.0 && bseGradient <= 100.0) { currentState = Inverter_Idle; }
-			  // brake not triggered, should move to check accelerator
-			  else {
-				  // check accelerator
-				  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
-				  else {
-					  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-						  appsRaw = HAL_ADC_GetValue(&hadc1);
-						  appsGradient = ((float) appsRaw / (float) 4096) * 100;
-
-						  if (appsGradient >= 0.0 && appsGradient <= 30.0) { currentState = Inverter_Idle; }
-			  			  else { currentState = Inverter_Fast; }
-					  }
-				  }
-			  }
-
+			  if (appsGradient >= 0.0 && appsGradient <= 30.0) { currentState = Inverter_Idle; }
+			  else { currentState = Inverter_Fast; }
+//					  }
+//				  }
+//			  }
 		  }
 	  }
 
 	  switch (currentState) {
 	  	  case Inverter_Idle:
-	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-	  		  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-	  		  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+
 	  		  // stop the motor from spinning
 	  		  if (prevState != currentState) {
 	  			  Inverter_Process(0.0);
 	  			  prevState = currentState;
 	  		  }
-
-	  		  // update states
-
 	  		  break;
 
 	  	  case Inverter_Fast:
-	  		  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-	  		  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-	  		  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-
 	  		  // get the motor spinning
 	  		  if (prevState != currentState) {
 	  			  Inverter_Process(400.0);
 	  			  prevState = currentState;
 	  		  }
-	  		  // update states
 	  		  break;
 	  }
 
@@ -352,58 +339,6 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
-
-}
-
-/**
-  * @brief ADC3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC3_Init(void)
-{
-
-  /* USER CODE BEGIN ADC3_Init 0 */
-
-  /* USER CODE END ADC3_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC3_Init 1 */
-
-  /* USER CODE END ADC3_Init 1 */
-
-  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-  */
-  hadc3.Instance = ADC3;
-  hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
-  hadc3.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
-  hadc3.Init.ContinuousConvMode = ENABLE;
-  hadc3.Init.DiscontinuousConvMode = DISABLE;
-  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc3.Init.NbrOfConversion = 1;
-  hadc3.Init.DMAContinuousRequests = DISABLE;
-  hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  if (HAL_ADC_Init(&hadc3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_5;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC3_Init 2 */
-
-  /* USER CODE END ADC3_Init 2 */
 
 }
 
@@ -639,6 +574,7 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
@@ -648,16 +584,32 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_9, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LD1_Pin|LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PE4 PE5 PE6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USER_Btn_Pin */
   GPIO_InitStruct.Pin = USER_Btn_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PF9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD1_Pin LD3_Pin LD2_Pin */
   GPIO_InitStruct.Pin = LD1_Pin|LD3_Pin|LD2_Pin;
