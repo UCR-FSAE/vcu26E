@@ -61,6 +61,7 @@ ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecr
 ETH_TxPacketConfig TxConfig;
 
 ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc3;
 
 CAN_HandleTypeDef hcan1;
 
@@ -90,6 +91,13 @@ float appsGradient = 0.0;
 uint32_t bseRaw;
 float bseGradient = 0.0;
 
+// bool to track the inverter state
+char InverterActive = 0;
+
+float torqueCommand = 0.0;
+static uint32_t last_execution_time = 0;
+const uint32_t INTERVAL_MS = 50;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,6 +109,7 @@ static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_CAN1_Init(void);
+static void MX_ADC3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -111,18 +120,74 @@ CAN_RxHeaderTypeDef   RxHeader;
 uint8_t               RxData[8];
 
 void HAL_CAN_RxFifo0MSGPendingCallback(CAN_HandleTypeDef *hcan) {
-	HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData);
-
-	if (RxHeader.StdId == 0x0AA && RxData[0] == 5) {
-		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-		__HAL_CAN_DISABLE_IT(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
-	}
-	else if (RxHeader.StdId == 0x0AA && RxData[0] == 7) {
-		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-	}
+//	HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData);
+//
+//	if (RxHeader.StdId == 0x0AA && RxData[0] == 0x000) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+////		InverterActive = 0;
+//	}
+//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x001) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+////		InverterActive = 1;
+//	}
+//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x002) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+////		InverterActive = 1;
+//	}
+//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x003) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+////		InverterActive = 1;
+//	}
+//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x004) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+////		InverterActive = 1;
+//	}
+//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x005) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+////		InverterActive = 1;
+//	}
+//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x006) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+////		InverterActive = 1;
+//	}
+//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x007) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+//		InverterActive = 1;
+//	}
 //	else {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+//		HAL_Delay(1000);
 //		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+//		HAL_Delay(1000);
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+//		HAL_Delay(1000);
 //		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+//		HAL_Delay(1000);
+//
 //	}
 }
 /* USER CODE END 0 */
@@ -162,13 +227,15 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   MX_ADC1_Init();
   MX_CAN1_Init();
+  MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
 
-//  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
-  HAL_ADC_Start(&hadc1);
+//  if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) { Error_Handler(); }
+//  HAL_ADC_Start(&hadc1);
 //  HAL_ADC_Start(&hadc3);
 
+//  while (InverterActive == 0) { Inverter_Init(); }
   Inverter_Init();
   HAL_Delay(1000);
   HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
@@ -178,66 +245,71 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
   HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
   HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-  prevState = Init;
+
+  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
+
+  prevState = Inverter_Idle;
   currentState = Inverter_Idle;
+
+//
+//  Inverter_Process(400.0);
+//  HAL_Delay(10000);
+//  Inverter_Process(400.0);
+//  HAL_Delay(2000);
+//  Inverter_Process(400.0);
+//  HAL_Delay(2000);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  Inverter_EnableInverter();
-	  // ADC Collection
-
 	  // check brakes first
-//	  if (HAL_ADC_Start(&hadc3) != HAL_OK) { Error_Handler(); }
-//	  else {
-//		  if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
-//			  bseRaw = HAL_ADC_GetValue(&hadc3);
-//			  bseGradient = ((float) bseRaw / (float) 4096) * 100;
-//
-//			  if (bseGradient >= 90.0 && bseGradient <= 100.0) { currentState = Inverter_Idle; }
-//			  // brake not triggered, should move to check accelerator
-//			  else {
-	  // check accelerator
-	  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
-	  else {
-		  if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-			  appsRaw = HAL_ADC_GetValue(&hadc1);
-			  appsGradient = ((float) appsRaw / (float) 4096) * 100;
+	  HAL_ADC_Start(&hadc3);
+	  if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
+		  bseRaw = HAL_ADC_GetValue(&hadc3);
+		  // replace with scaling equation, need to tweak for other pot too
+		  bseGradient = ((float) bseRaw / (float) 4096) * 100;
 
-			  if (appsGradient >= 0.0 && appsGradient <= 30.0) { currentState = Inverter_Idle; }
-			  else { currentState = Inverter_Fast; }
-//					  }
-//				  }
-//			  }
+		  if (bseGradient >= 0.0 && bseGradient <= 10.0) { torqueCommand = 0.0; }
+		  else {
+			  HAL_ADC_Start(&hadc1);
+			  if (HAL_ADC_PollForConversion(&hadc1, 1) == HAL_OK) {
+				  // scales adc value back into 0-5 voltage range
+				  appsRaw = (((float) (HAL_ADC_GetValue(&hadc1)) / (float) (4095.0)) * 5);
+				  // outputs torque according to this equation (accounts for pedal travel)
+				  torqueCommand = 250 * (appsRaw) - 650;
+
+				  if (torqueCommand >= 0 && torqueCommand <= 400.0) { Inverter_Process(torqueCommand); }
+			  }
 		  }
 	  }
-
-	  switch (currentState) {
-	  	  case Inverter_Idle:
-
-	  		  // stop the motor from spinning
-	  		  if (prevState != currentState) {
-	  			  Inverter_Process(0.0);
-	  			  prevState = currentState;
-	  		  }
-	  		  break;
-
-	  	  case Inverter_Fast:
-	  		  // get the motor spinning
-	  		  if (prevState != currentState) {
-	  			  Inverter_Process(400.0);
-	  			  prevState = currentState;
-	  		  }
-	  		  break;
-	  }
-
+  	  // 10 ms delay to optimize inverter performance
 	  HAL_Delay(10);
+  }
+
+				  // currently unused, unscaled math
+//				  appsGradient = ((float) (appsRaw)/ (float) 4095) * 100;
+//				  if (appsGradient >= 0.0 && appsGradient <= 30.0) {
+//					  currentState = Inverter_Idle;
+//					  torqueCommand = 0.0;
+//				  }
+//				  else if (appsGradient > 30.0 && appsGradient < 100.0) {
+//					  currentState = Inverter_Fast;
+//					  torqueCommand = 50.0;
+//				  }
+//				  else {
+//					  currentState = Inverter_Idle;
+//					  torqueCommand = 0.0;
+//				  }
+		  	  	  // Inverter_Process(torqueCommand);
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
   /* USER CODE END 3 */
 }
 
@@ -313,7 +385,7 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -339,6 +411,58 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief ADC3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC3_Init(void)
+{
+
+  /* USER CODE BEGIN ADC3_Init 0 */
+
+  /* USER CODE END ADC3_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC3_Init 1 */
+
+  /* USER CODE END ADC3_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc3.Instance = ADC3;
+  hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc3.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc3.Init.ContinuousConvMode = ENABLE;
+  hadc3.Init.DiscontinuousConvMode = DISABLE;
+  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc3.Init.NbrOfConversion = 1;
+  hadc3.Init.DMAContinuousRequests = DISABLE;
+  hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC3_Init 2 */
+
+  /* USER CODE END ADC3_Init 2 */
 
 }
 
@@ -381,9 +505,9 @@ static void MX_CAN1_Init(void)
   canfilterconfig.FilterBank = 18;  // which filter bank to use from the assigned ones
   canfilterconfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
   canfilterconfig.FilterIdHigh = 0x0AA<<5;
-  canfilterconfig.FilterIdLow = 0;
+  canfilterconfig.FilterIdLow = 0x0000;
   canfilterconfig.FilterMaskIdHigh = 0x7FF<<5;
-  canfilterconfig.FilterMaskIdLow = 0x0000;
+  canfilterconfig.FilterMaskIdLow = CAN_ID_STD;
   canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
   canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
   canfilterconfig.SlaveStartFilterBank = 14;  // how many filters to assign to the CAN1 (master can)
