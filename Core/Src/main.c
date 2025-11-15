@@ -85,7 +85,7 @@ typedef enum {
 InverterState currentState = Init;
 InverterState prevState;
 
-uint32_t appsRaw;
+float appsRaw;
 float appsGradient = 0.0;
 
 uint32_t bseRaw;
@@ -235,7 +235,6 @@ int main(void)
 //  HAL_ADC_Start(&hadc1);
 //  HAL_ADC_Start(&hadc3);
 
-//  while (InverterActive == 0) { Inverter_Init(); }
   Inverter_Init();
   HAL_Delay(1000);
   HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
@@ -246,18 +245,9 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
   HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 
+  // start the adc with error handler in case something goes wrong
   if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
-
-  prevState = Inverter_Idle;
-  currentState = Inverter_Idle;
-
-//
-//  Inverter_Process(400.0);
-//  HAL_Delay(10000);
-//  Inverter_Process(400.0);
-//  HAL_Delay(2000);
-//  Inverter_Process(400.0);
-//  HAL_Delay(2000);
+  if (HAL_ADC_Start(&hadc3) != HAL_OK) { Error_Handler(); }
 
   /* USER CODE END 2 */
 
@@ -266,25 +256,28 @@ int main(void)
   while (1)
   {
 	  // check brakes first
-	  HAL_ADC_Start(&hadc3);
-	  if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-		  bseRaw = HAL_ADC_GetValue(&hadc3);
-		  // replace with scaling equation, need to tweak for other pot too
-		  bseGradient = ((float) bseRaw / (float) 4096) * 100;
-
-		  if (bseGradient >= 0.0 && bseGradient <= 10.0) { torqueCommand = 0.0; }
-		  else {
+//	  HAL_ADC_Start(&hadc3);
+//	  if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
+//		  bseRaw = HAL_ADC_GetValue(&hadc3);
+//		  // replace with scaling equation, need to tweak for other pot too
+//		  bseGradient = ((float) bseRaw / (float) 4096) * 100;
+//
+//		  if (bseGradient >= 0.0 && bseGradient <= 10.0) { torqueCommand = 0.0; }
+//		  else {
 			  HAL_ADC_Start(&hadc1);
 			  if (HAL_ADC_PollForConversion(&hadc1, 1) == HAL_OK) {
-				  // scales adc value back into 0-5 voltage range
+				  // scales adc value back into 0-5 voltage range (3.5 - 5)?
 				  appsRaw = (((float) (HAL_ADC_GetValue(&hadc1)) / (float) (4095.0)) * 5);
 				  // outputs torque according to this equation (accounts for pedal travel)
-				  torqueCommand = 250 * (appsRaw) - 650;
-
-				  if (torqueCommand >= 0 && torqueCommand <= 400.0) { Inverter_Process(torqueCommand); }
+//				  torqueCommand = 250 * (appsRaw) - 650;
+//				  torqueCommand = 25 * (appsRaw) - 65 + 8;
+				  torqueCommand = 26.67 * (appsRaw) - 92;
+				  // check torque bounds
+//				  if (torqueCommand >= 0 && torqueCommand <= 40.0) { Inverter_Process(torqueCommand); }
+				  Inverter_Process(torqueCommand);
 			  }
-		  }
-	  }
+//		  }
+//	  }
   	  // 10 ms delay to optimize inverter performance
 	  HAL_Delay(10);
   }
@@ -292,15 +285,12 @@ int main(void)
 				  // currently unused, unscaled math
 //				  appsGradient = ((float) (appsRaw)/ (float) 4095) * 100;
 //				  if (appsGradient >= 0.0 && appsGradient <= 30.0) {
-//					  currentState = Inverter_Idle;
 //					  torqueCommand = 0.0;
 //				  }
 //				  else if (appsGradient > 30.0 && appsGradient < 100.0) {
-//					  currentState = Inverter_Fast;
 //					  torqueCommand = 50.0;
 //				  }
 //				  else {
-//					  currentState = Inverter_Idle;
 //					  torqueCommand = 0.0;
 //				  }
 		  	  	  // Inverter_Process(torqueCommand);
