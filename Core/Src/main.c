@@ -91,8 +91,8 @@ float appsGradient = 0.0;
 float bseRaw;
 float bseGradient = 0.0;
 
-// bool to track the inverter state
-char InverterActive = 0;
+// bool for ready to drive
+char RTDActive = 0;
 
 float torqueCommand = 0.0;
 static uint32_t last_execution_time = 0;
@@ -270,6 +270,16 @@ int main(void)
 	  bseGradient = (1.351 * (bseRaw) - 1.7) * 100;
 	  torqueCommand = (52.083 * (appsRaw) - 106); // 0-100
 //	  torqueCommand = 26.67 * (appsRaw) - 92;
+
+	  if (RTDActive == 0) {
+		  if (bseGradient > 10.0 && HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
+			  uint32_t startTick = HAL_GetTick();
+			  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, SET);
+			  while(HAL_GetTick() - startTick < 100) {}
+			  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, RESET);
+			  RTDActive = 1;
+		  }
+	  }
 
 	  if (bseGradient < 0.0) { bseGradient = 0.0; }
 	  if (bseGradient > 100.0) { bseGradient = 100.0; }
@@ -690,7 +700,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOF, GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LD1_Pin|Brake_Output_Pin|LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LD1_Pin|RTD_Output_Pin|LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
@@ -714,12 +724,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD1_Pin Brake_Output_Pin LD3_Pin LD2_Pin */
-  GPIO_InitStruct.Pin = LD1_Pin|Brake_Output_Pin|LD3_Pin|LD2_Pin;
+  /*Configure GPIO pins : LD1_Pin RTD_Output_Pin LD3_Pin LD2_Pin */
+  GPIO_InitStruct.Pin = LD1_Pin|RTD_Output_Pin|LD3_Pin|LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Driver_Action_Pin */
+  GPIO_InitStruct.Pin = Driver_Action_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Driver_Action_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
