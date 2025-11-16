@@ -85,10 +85,10 @@ typedef enum {
 InverterState currentState = Init;
 InverterState prevState;
 
-uint32_t appsRaw;
+float appsRaw;
 float appsGradient = 0.0;
 
-uint32_t bseRaw;
+float bseRaw;
 float bseGradient = 0.0;
 
 // bool to track the inverter state
@@ -235,7 +235,6 @@ int main(void)
 //  HAL_ADC_Start(&hadc1);
 //  HAL_ADC_Start(&hadc3);
 
-//  while (InverterActive == 0) { Inverter_Init(); }
   Inverter_Init();
   HAL_Delay(1000);
   HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
@@ -246,18 +245,9 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
   HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 
-  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
-
-  prevState = Inverter_Idle;
-  currentState = Inverter_Idle;
-
-//
-//  Inverter_Process(400.0);
-//  HAL_Delay(10000);
-//  Inverter_Process(400.0);
-//  HAL_Delay(2000);
-//  Inverter_Process(400.0);
-//  HAL_Delay(2000);
+  // start the adc with error handler in case something goes wrong
+//  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
+//  if (HAL_ADC_Start(&hadc3) != HAL_OK) { Error_Handler(); }
 
   /* USER CODE END 2 */
 
@@ -266,44 +256,42 @@ int main(void)
   while (1)
   {
 	  // check brakes first
+
 	  HAL_ADC_Start(&hadc3);
-	  if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-		  bseRaw = HAL_ADC_GetValue(&hadc3);
-		  // replace with scaling equation, need to tweak for other pot too
-		  bseGradient = ((float) bseRaw / (float) 4096) * 100;
-
-		  if (bseGradient >= 0.0 && bseGradient <= 10.0) { torqueCommand = 0.0; }
-		  else {
-			  HAL_ADC_Start(&hadc1);
-			  if (HAL_ADC_PollForConversion(&hadc1, 1) == HAL_OK) {
-				  // scales adc value back into 0-5 voltage range
-				  appsRaw = (((float) (HAL_ADC_GetValue(&hadc1)) / (float) (4095.0)) * 5);
-				  // outputs torque according to this equation (accounts for pedal travel)
-				  torqueCommand = 250 * (appsRaw) - 650;
-
-				  if (torqueCommand >= 0 && torqueCommand <= 400.0) { Inverter_Process(torqueCommand); }
-			  }
-		  }
+	  if (HAL_ADC_PollForConversion(&hadc3, 100) == HAL_OK) {
+		  bseRaw = (((float) (HAL_ADC_GetValue(&hadc3)) / (float) (4095.0)) * 5.0);
 	  }
+	  HAL_ADC_Stop(&hadc3);
+
+	  HAL_ADC_Start(&hadc1);
+	  if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK) {
+		  appsRaw = (((float) (HAL_ADC_GetValue(&hadc1)) / (float) (4095.0)) * 5.0);
+	  }
+	  HAL_ADC_Stop(&hadc1);
+
+//	  if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK) {
+
+//	  }
+
+
+
+	  bseGradient = (1.351 * (bseRaw) - 1.7) * 100;
+	  torqueCommand = (52.083 * (appsRaw) - 106); // 0-100
+//	  torqueCommand = 26.67 * (appsRaw) - 92;
+
+	  if (bseGradient < 0.0) { bseGradient = 0.0; }
+	  if (bseGradient > 100.0) { bseGradient = 100.0; }
+	  if (bseGradient > 10.0) { torqueCommand = 0.0; }
+	  else {
+		  if (torqueCommand <= 1.0) {torqueCommand = 0.0; }
+		  if (torqueCommand >= 100.0) {torqueCommand = 100.0; }
+	  }
+	  Inverter_Process(torqueCommand);
   	  // 10 ms delay to optimize inverter performance
 	  HAL_Delay(10);
+
   }
 
-				  // currently unused, unscaled math
-//				  appsGradient = ((float) (appsRaw)/ (float) 4095) * 100;
-//				  if (appsGradient >= 0.0 && appsGradient <= 30.0) {
-//					  currentState = Inverter_Idle;
-//					  torqueCommand = 0.0;
-//				  }
-//				  else if (appsGradient > 30.0 && appsGradient < 100.0) {
-//					  currentState = Inverter_Fast;
-//					  torqueCommand = 50.0;
-//				  }
-//				  else {
-//					  currentState = Inverter_Idle;
-//					  torqueCommand = 0.0;
-//				  }
-		  	  	  // Inverter_Process(torqueCommand);
 
 
 
@@ -386,7 +374,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
@@ -403,7 +391,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -438,7 +426,7 @@ static void MX_ADC3_Init(void)
   hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc3.Init.Resolution = ADC_RESOLUTION_12B;
   hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc3.Init.ContinuousConvMode = ENABLE;
+  hadc3.Init.ContinuousConvMode = DISABLE;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
   hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
@@ -453,7 +441,7 @@ static void MX_ADC3_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
