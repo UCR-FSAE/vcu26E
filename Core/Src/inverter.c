@@ -27,22 +27,22 @@ void Inverter_Init(void) {
   * @retval None
   */
 void Inverter_Process(float torqueCommand) {
-	if (torqueCommand < 10.0) {
+	if (torqueCommand < 250.0) {
 		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
 		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
 		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 	}
-	else if (torqueCommand < 20.0) {
+	else if (torqueCommand < 500.0) {
 		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
 		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
 		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 	}
-	else if (torqueCommand < 30.0) {
+	else if (torqueCommand < 750.0) {
 		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
 		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
 		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 	}
-	else if (torqueCommand <= 45.0) {
+	else if (torqueCommand <= 1000.0) {
 		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
 		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
 		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
