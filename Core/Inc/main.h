@@ -67,6 +67,8 @@ void Error_Handler(void);
 #define RMII_REF_CLK_GPIO_Port GPIOA
 #define RMII_MDIO_Pin GPIO_PIN_2
 #define RMII_MDIO_GPIO_Port GPIOA
+#define Brake_Light_Active_Pin GPIO_PIN_4
+#define Brake_Light_Active_GPIO_Port GPIOA
 #define RMII_CRS_DV_Pin GPIO_PIN_7
 #define RMII_CRS_DV_GPIO_Port GPIOA
 #define RMII_RXD0_Pin GPIO_PIN_4
@@ -75,8 +77,10 @@ void Error_Handler(void);
 #define RMII_RXD1_GPIO_Port GPIOC
 #define LD1_Pin GPIO_PIN_0
 #define LD1_GPIO_Port GPIOB
-#define Brake_Output_Pin GPIO_PIN_11
-#define Brake_Output_GPIO_Port GPIOB
+#define Driver_Action_Pin GPIO_PIN_10
+#define Driver_Action_GPIO_Port GPIOB
+#define RTD_Output_Pin GPIO_PIN_11
+#define RTD_Output_GPIO_Port GPIOB
 #define RMII_TXD1_Pin GPIO_PIN_13
 #define RMII_TXD1_GPIO_Port GPIOB
 #define LD3_Pin GPIO_PIN_14

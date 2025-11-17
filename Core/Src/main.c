@@ -91,8 +91,8 @@ float appsGradient = 0.0;
 float bseRaw;
 float bseGradient = 0.0;
 
-// bool to track the inverter state
-char InverterActive = 0;
+// bool for ready to drive
+char RTDActive = 0;
 
 float torqueCommand = 0.0;
 static uint32_t last_execution_time = 0;
@@ -231,10 +231,6 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
 
-//  if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) { Error_Handler(); }
-//  HAL_ADC_Start(&hadc1);
-//  HAL_ADC_Start(&hadc3);
-
   Inverter_Init();
   HAL_Delay(1000);
   HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
@@ -245,10 +241,6 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
   HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 
-  // start the adc with error handler in case something goes wrong
-//  if (HAL_ADC_Start(&hadc1) != HAL_OK) { Error_Handler(); }
-//  if (HAL_ADC_Start(&hadc3) != HAL_OK) { Error_Handler(); }
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -256,34 +248,50 @@ int main(void)
   while (1)
   {
 	  HAL_ADC_Start(&hadc3);
-	  if (HAL_ADC_PollForConversion(&hadc3, 100) == HAL_OK) {
+	  if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
 		  bseRaw = (((float) (HAL_ADC_GetValue(&hadc3)) / (float) (4095.0)) * 5.0);
 	  }
 	  HAL_ADC_Stop(&hadc3);
 
 	  HAL_ADC_Start(&hadc1);
-	  if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK) {
+	  if (HAL_ADC_PollForConversion(&hadc1, 1) == HAL_OK) {
 		  appsRaw = (((float) (HAL_ADC_GetValue(&hadc1)) / (float) (4095.0)) * 5.0);
 	  }
 	  HAL_ADC_Stop(&hadc1);
 
 	  bseGradient = (1.351 * (bseRaw) - 1.7) * 100;
-	  torqueCommand = (52.083 * (appsRaw) - 106); // 0-100
+	  torqueCommand = (513.924 * (appsRaw) - 1030); // 0-1000
 //	  torqueCommand = 26.67 * (appsRaw) - 92;
 
-	  if (bseGradient < 0.0) { bseGradient = 0.0; }
-	  if (bseGradient > 100.0) { bseGradient = 100.0; }
-	  if (bseGradient > 10.0) { torqueCommand = 0.0; }
-	  else {
-		  if (torqueCommand <= 1.0) {torqueCommand = 0.0; }
-		  if (torqueCommand >= 100.0) {torqueCommand = 100.0; }
+//	  brake light logic
+	  if (bseGradient > 10.0) { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, SET); }
+	  else { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET); }
+
+	  if (RTDActive == 0) {
+		  if (bseGradient > 10.0 && HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
+			  uint32_t startTick = HAL_GetTick();
+			  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, SET);
+			  while(HAL_GetTick() - startTick < 1500) {}
+			  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, RESET);
+			  RTDActive = 1;
+		  }
 	  }
-	  Inverter_Process(torqueCommand);
+	  else {
+		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
+		  if (bseGradient < 0.0) { bseGradient = 0.0; }
+		  if (bseGradient > 100.0) { bseGradient = 100.0; }
+		  if (bseGradient > 10.0) { torqueCommand = 0.0; }
+		  else {
+			  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
+			  if (torqueCommand >= 1000.0) {torqueCommand = 1000.0; }
+		  }
+		  Inverter_Process(torqueCommand);
+	  }
+
+
   	  // 10 ms delay to optimize inverter performance
 	  HAL_Delay(10);
   }
-
-
 
 
     /* USER CODE END WHILE */
@@ -690,7 +698,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOF, GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LD1_Pin|Brake_Output_Pin|LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, LD1_Pin|RTD_Output_Pin|LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
@@ -714,12 +725,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD1_Pin Brake_Output_Pin LD3_Pin LD2_Pin */
-  GPIO_InitStruct.Pin = LD1_Pin|Brake_Output_Pin|LD3_Pin|LD2_Pin;
+  /*Configure GPIO pin : Brake_Light_Active_Pin */
+  GPIO_InitStruct.Pin = Brake_Light_Active_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(Brake_Light_Active_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LD1_Pin RTD_Output_Pin LD3_Pin LD2_Pin */
+  GPIO_InitStruct.Pin = LD1_Pin|RTD_Output_Pin|LD3_Pin|LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Driver_Action_Pin */
+  GPIO_InitStruct.Pin = Driver_Action_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Driver_Action_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
