@@ -85,6 +85,15 @@ typedef enum {
 InverterState currentState = Init;
 InverterState prevState;
 
+typedef struct {
+	Uint32_t curTick;
+	Uint32_t duration;
+	Uint8_t hasStarted = 0;
+} Timer;
+
+Timer appsTimer = {0};
+Uint8_t appsFail = 0;
+
 float appsRaw;
 float appsGradient = 0.0;
 
@@ -190,6 +199,27 @@ void HAL_CAN_RxFifo0MSGPendingCallback(CAN_HandleTypeDef *hcan) {
 //
 //	}
 }
+
+void timerStart(Timer *t, Uint32_t duration) {
+	if (!t->hasStarted) {
+		t->curTick = HAL_GetTick();
+		t->duration = duration;
+		t->hasStarted = 1;
+	}
+}
+
+void timerReset(Timer *t) {
+	t->duration = 0;
+	t->hasStarted = 0;
+}
+
+Uint8_t timerExpires(Timer *t) {
+	if (t->hasStarted) {
+		if ((HAL_GetTick() - t->curTick) >= t->duration) { return 1; }
+	}
+	return 0;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -278,6 +308,10 @@ int main(void)
 	  }
 	  else {
 		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
+		  if (appsGradient > 0.0) {
+			  TimerStart(&appsTimer, 100);
+			  appsFail = 1;
+		  }
 		  if (bseGradient < 0.0) { bseGradient = 0.0; }
 		  if (bseGradient > 100.0) { bseGradient = 100.0; }
 		  if (bseGradient > 10.0) { torqueCommand = 0.0; }
@@ -285,7 +319,12 @@ int main(void)
 			  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
 			  if (torqueCommand >= 1000.0) {torqueCommand = 1000.0; }
 		  }
+		  if (timeExpires(&appsTimer)){
+			  Inverter_DisableInverter();
+		  }
 		  Inverter_Process(torqueCommand);
+		  if (!appsFail){ timerResets(&appsTimer); }
+		  appsFail = 0;
 	  }
 
 
