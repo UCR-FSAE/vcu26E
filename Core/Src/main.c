@@ -315,10 +315,19 @@ int main(void)
 	  }
 	  else {
 		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
-		  if (appsGradient > 0.0) {
+
+		  if (appsGradient > 0.0 || appsRaw > appsMax || appsRaw < appsMin) {
 			  TimerStart(&appsTimer, 100);
 			  appsFail = 1;
 		  }
+		  else {
+			  timerResets(&appsTimer);
+			  appsFail = 0;
+		  }
+		  if (timeExpires(&appsTimer)){
+			  Inverter_DisableInverter();
+		  }
+
 		  if (bseGradient < 0.0) { bseGradient = 0.0; }
 		  if (bseGradient > 100.0) { bseGradient = 100.0; }
 		  if (bseGradient > 10.0) { torqueCommand = 0.0; }
@@ -326,12 +335,7 @@ int main(void)
 			  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
 			  if (torqueCommand >= 1000.0) {torqueCommand = 1000.0; }
 		  }
-		  if (timeExpires(&appsTimer)){
-			  Inverter_DisableInverter();
-		  }
 		  Inverter_Process(torqueCommand);
-		  if (!appsFail){ timerResets(&appsTimer); }
-		  appsFail = 0;
 	  }
 
   	  // 10 ms delay to optimize inverter performance
