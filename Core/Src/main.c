@@ -85,6 +85,10 @@ typedef enum {
 InverterState currentState = Init;
 InverterState prevState;
 
+
+Timer bseTimer = {0};
+Uint8_t bseFail = 0;
+
 float appsRaw;
 float appsGradient = 0.0;
 
@@ -278,6 +282,20 @@ int main(void)
 	  }
 	  else {
 		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
+
+      if (bseGradient < 0 || bseGradient > 100 || bseRaw < 0.5 || bseRaw > 4.5){
+      TimerStart(&bseTimer, 100);
+      bseFail = 1;
+      }
+            else { timerResets(&bseTimer); 
+		  bseFail = 0;
+            }
+
+      if (timeExpires(&bseTimer)){
+			  Inverter_DisableInverter();
+		  }
+
+
 		  if (bseGradient < 0.0) { bseGradient = 0.0; }
 		  if (bseGradient > 100.0) { bseGradient = 100.0; }
 		  if (bseGradient > 10.0) { torqueCommand = 0.0; }
@@ -287,7 +305,6 @@ int main(void)
 		  }
 		  Inverter_Process(torqueCommand);
 	  }
-
 
   	  // 10 ms delay to optimize inverter performance
 	  HAL_Delay(10);
