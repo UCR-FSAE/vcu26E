@@ -316,7 +316,7 @@ int main(void)
 	  else {
 		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
 
-		  if (appsGradient > 0.0 || appsRaw > appsMax || appsRaw < appsMin) {
+		  if (appsRaw > appsMax || appsRaw < appsMin) {
 			  TimerStart(&appsTimer, 100);
 			  appsFail = 1;
 		  }
@@ -324,9 +324,7 @@ int main(void)
 			  timerResets(&appsTimer);
 			  appsFail = 0;
 		  }
-		  if (timeExpires(&appsTimer)){
-			  Inverter_DisableInverter();
-		  }
+		  if (timeExpires(&appsTimer)){ Inverter_DisableInverter(); }
 
 		  if (bseGradient < 0.0) { bseGradient = 0.0; }
 		  if (bseGradient > 100.0) { bseGradient = 100.0; }
