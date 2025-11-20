@@ -85,7 +85,6 @@ typedef enum {
 InverterState currentState = Init;
 InverterState prevState;
 
-<<<<<<< HEAD
 typedef struct {
 	Uint32_t curTick;
 	Uint32_t duration;
@@ -94,11 +93,9 @@ typedef struct {
 
 Timer appsTimer = {0};
 Uint8_t appsFail = 0;
-=======
 
 Timer bseTimer = {0};
 Uint8_t bseFail = 0;
->>>>>>> upstream/myctruongg/bse
 
 float appsRaw;
 float appsGradient = 0.0;
@@ -322,7 +319,6 @@ int main(void)
 	  else {
 		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
 
-<<<<<<< HEAD
 		  if (appsRaw > appsMax || appsRaw < appsMin) {
 			  TimerStart(&appsTimer, 100);
 			  appsFail = 1;
@@ -331,21 +327,18 @@ int main(void)
 			  timerResets(&appsTimer);
 			  appsFail = 0;
 		  }
-		  if (timeExpires(&appsTimer)){ Inverter_DisableInverter(); }
-=======
-      if (bseRaw < bseMin || bseRaw > bseMax){
-      TimerStart(&bseTimer, 100);
-      bseFail = 1;
-      }
-            else { timerResets(&bseTimer); 
-		  bseFail = 0;
-            }
 
-      if (timeExpires(&bseTimer)){
-			  Inverter_DisableInverter();
+		  if (bseRaw < bseMin || bseRaw > bseMax){
+			  TimerStart(&bseTimer, 100);
+			  bseFail = 1;
 		  }
+          else {
+        	  timerResets(&bseTimer);
+		  	  bseFail = 0;
+           }
 
->>>>>>> upstream/myctruongg/bse
+		  if (timeExpires(&appsTimer)){ Inverter_DisableInverter(); }
+		  if (timeExpires(&bseTimer)){ Inverter_DisableInverter(); }
 
 		  if (bseGradient < 0.0) { bseGradient = 0.0; }
 		  if (bseGradient > 100.0) { bseGradient = 100.0; }
