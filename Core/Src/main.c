@@ -283,7 +283,7 @@ int main(void)
 	  else {
 		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
 
-      if (bseGradient < 0 || bseGradient > 100 || bseRaw < 0.5 || bseRaw > 4.5){
+      if (bseRaw < bseMin || bseRaw > bseMax){
       TimerStart(&bseTimer, 100);
       bseFail = 1;
       }
