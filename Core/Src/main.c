@@ -95,6 +95,13 @@ float appsGradient = 0.0;
 float bseRaw;
 float bseGradient = 0.0;
 
+// we will fill these in later but use these in the meantime for plausibility checks
+uint32_t appsMin;
+uint32_t appsMax;
+
+uint32_t bseMin;
+uint32_t bseMax;
+
 // bool for ready to drive
 char RTDActive = 0;
 
