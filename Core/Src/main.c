@@ -94,9 +94,11 @@ float bseGradient = 0.0;
 // we will fill these in later but use these in the meantime for plausibility checks
 uint32_t appsMin;
 uint32_t appsMax;
+uint32_t appsThreshold;
 
 uint32_t bseMin;
 uint32_t bseMax;
+float bseThreshold = 20.0;
 
 // bool for ready to drive
 char RTDActive = 0;
@@ -271,11 +273,12 @@ int main(void)
 //	  torqueCommand = 26.67 * (appsRaw) - 92;
 
 //	  brake light logic
-	  if (bseGradient > 10.0) { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, SET); }
-	  else { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET); }
+	  HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET);
+	  if (bseGradient > bseThreshold) { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, SET); }
+//	  else { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET); }
 
 	  if (RTDActive == 0) {
-		  if (bseGradient > 10.0 && HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
+		  if (bseGradient > bseThreshold && HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
 			  uint32_t startTick = HAL_GetTick();
 			  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, SET);
 			  while(HAL_GetTick() - startTick < 1500) {}
@@ -287,7 +290,7 @@ int main(void)
 		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
 		  if (bseGradient < 0.0) { bseGradient = 0.0; }
 		  if (bseGradient > 100.0) { bseGradient = 100.0; }
-		  if (bseGradient > 10.0) { torqueCommand = 0.0; }
+		  if (bseGradient > bseThreshold) { torqueCommand = 0.0; }
 		  else {
 			  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
 			  if (torqueCommand >= 1000.0) {torqueCommand = 1000.0; }
@@ -296,7 +299,7 @@ int main(void)
 	  }
 
   	  // 10 ms delay to optimize inverter performance
-	  HAL_Delay(10);
+	  HAL_Delay(30);
   }
 
 
