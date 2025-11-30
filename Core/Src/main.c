@@ -74,16 +74,6 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
-typedef enum {
-	Init,
-	Inverter_Idle,
-	Inverter_Slow,
-	Inverter_Medium,
-	Inverter_Fast
-} InverterState;
-
-InverterState currentState = Init;
-InverterState prevState;
 
 typedef struct {
 	Uint32_t curTick;
@@ -98,26 +88,19 @@ Timer bseTimer = {0};
 Uint8_t bseFail = 0;
 
 float appsRaw;
-float appsGradient = 0.0;
-
 float bseRaw;
-float bseGradient = 0.0;
+float appsGradient;
+float bseGradient;
 
-// we will fill these in later but use these in the meantime for plausibility checks
-uint32_t appsMin;
-uint32_t appsMax;
-uint32_t appsThreshold;
-
-uint32_t bseMin;
-uint32_t bseMax;
-float bseThreshold = 20.0;
-
-// bool for ready to drive
-char RTDActive = 0;
-
-float torqueCommand = 0.0;
-static uint32_t last_execution_time = 0;
-const uint32_t INTERVAL_MS = 50;
+// configuration and calibration variables
+float appsMin = 		2.0;
+float appsMax = 		3.95;
+float bseMin = 			1.58933;
+float bseMax = 			4.95929;
+float bseThreshold = 	20.0; // activation thresholds for the brakes
+char RTDActive = 		0; // bool for ready to drive
+float torqueCommand = 	0.0; // torque command which will be sent to the inverter
+uint16_t delay = 		10;	// delay length in between loop executions
 
 /* USER CODE END PV */
 
@@ -139,99 +122,6 @@ static void MX_ADC3_Init(void);
 /* USER CODE BEGIN 0 */
 CAN_RxHeaderTypeDef   RxHeader;
 uint8_t               RxData[8];
-
-void HAL_CAN_RxFifo0MSGPendingCallback(CAN_HandleTypeDef *hcan) {
-//	HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData);
-//
-//	if (RxHeader.StdId == 0x0AA && RxData[0] == 0x000) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-////		InverterActive = 0;
-//	}
-//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x001) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-////		InverterActive = 1;
-//	}
-//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x002) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-////		InverterActive = 1;
-//	}
-//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x003) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-////		InverterActive = 1;
-//	}
-//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x004) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-////		InverterActive = 1;
-//	}
-//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x005) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-////		InverterActive = 1;
-//	}
-//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x006) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-////		InverterActive = 1;
-//	}
-//	else if (RxHeader.StdId == 0x0AA && RxData[0] == 0x007) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-//		InverterActive = 1;
-//	}
-//	else {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-//		HAL_Delay(1000);
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-//		HAL_Delay(1000);
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-//		HAL_Delay(1000);
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-//		HAL_Delay(1000);
-//
-//	}
-}
-
-void timerStart(Timer *t, Uint32_t duration) {
-	if (!t->hasStarted) {
-		t->curTick = HAL_GetTick();
-		t->duration = duration;
-		t->hasStarted = 1;
-	}
-}
-
-void timerReset(Timer *t) {
-	t->duration = 0;
-	t->hasStarted = 0;
-}
-
-Uint8_t timerExpires(Timer *t) {
-	if (t->hasStarted) {
-		if ((HAL_GetTick() - t->curTick) >= t->duration) { return 1; }
-	}
-	return 0;
-}
-
 /* USER CODE END 0 */
 
 /**
@@ -274,14 +164,14 @@ int main(void)
   HAL_CAN_Start(&hcan1);
 
   Inverter_Init();
-  HAL_Delay(1000);
-  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-  HAL_Delay(1000);
-  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+
+  // toggles for 1 second on activation of the inverter
+  for (int i = 0; i < 2; i++) {
+	  HAL_GPIO_TogglePin(GPIOB, LD1_PIN);
+	  HAL_GPIO_TogglePin(GPIOB, LD2_PIN);
+	  HAL_GPIO_TogglePin(GPIOB, LD3_PIN);
+	  HAL_Delay(1000);
+  }
 
   /* USER CODE END 2 */
 
@@ -303,12 +193,10 @@ int main(void)
 
 	  bseGradient = (1.351 * (bseRaw) - 1.7) * 100;
 	  torqueCommand = (513.924 * (appsRaw) - 1030); // 0-1000
-//	  torqueCommand = 26.67 * (appsRaw) - 92;
 
 //	  brake light logic
-	  HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET);
 	  if (bseGradient > bseThreshold) { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, SET); }
-//	  else { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET); }
+	  else { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET); }
 
 	  if (RTDActive == 0) {
 		  if (bseGradient > bseThreshold && HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
@@ -353,8 +241,8 @@ int main(void)
 		  Inverter_Process(torqueCommand);
 	  }
 
-  	  // 10 ms delay to optimize inverter performance
-	  HAL_Delay(30);
+  	  // delay to optimize inverter performance
+	  HAL_Delay(delay);
   }
 
 
