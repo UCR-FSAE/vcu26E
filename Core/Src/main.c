@@ -189,9 +189,9 @@ int main(void)
 
   // toggles for 1 second on activation of the inverter
   for (int i = 0; i < 2; i++) {
-	  HAL_GPIO_TogglePin(GPIOB, LD1_PIN);
-	  HAL_GPIO_TogglePin(GPIOB, LD2_PIN);
-	  HAL_GPIO_TogglePin(GPIOB, LD3_PIN);
+	  HAL_GPIO_TogglePin(GPIOB, LD1_Pin);
+	  HAL_GPIO_TogglePin(GPIOB, LD2_Pin);
+	  HAL_GPIO_TogglePin(GPIOB, LD3_Pin);
 	  HAL_Delay(1000);
   }
 
