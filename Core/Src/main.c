@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,16 +86,16 @@ InverterState currentState = Init;
 InverterState prevState;
 
 typedef struct {
-	Uint32_t curTick;
-	Uint32_t duration;
-	Uint8_t hasStarted = 0;
+	uint32_t curTick;
+	uint32_t duration;
+	uint8_t hasStarted;
 } Timer;
 
 Timer appsTimer = {0};
-Uint8_t appsFail = 0;
+uint8_t appsFail = 0;
 
 Timer bseTimer = {0};
-Uint8_t bseFail = 0;
+uint8_t bseFail = 0;
 
 float appsRaw;
 float appsGradient = 0.0;
@@ -210,7 +210,7 @@ void HAL_CAN_RxFifo0MSGPendingCallback(CAN_HandleTypeDef *hcan) {
 //	}
 }
 
-void timerStart(Timer *t, Uint32_t duration) {
+void timerStart(Timer *t, uint32_t duration) {
 	if (!t->hasStarted) {
 		t->curTick = HAL_GetTick();
 		t->duration = duration;
@@ -223,7 +223,7 @@ void timerReset(Timer *t) {
 	t->hasStarted = 0;
 }
 
-Uint8_t timerExpires(Timer *t) {
+uint8_t timerExpires(Timer *t) {
 	if (t->hasStarted) {
 		if ((HAL_GetTick() - t->curTick) >= t->duration) { return 1; }
 	}
@@ -320,25 +320,25 @@ int main(void)
 		  if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
 
 		  if (appsRaw > appsMax || appsRaw < appsMin) {
-			  TimerStart(&appsTimer, 100);
+			  timerStart(&appsTimer, 100);
 			  appsFail = 1;
 		  }
 		  else {
-			  timerResets(&appsTimer);
+			  timerReset(&appsTimer);
 			  appsFail = 0;
 		  }
 
 		  if (bseRaw < bseMin || bseRaw > bseMax){
-			  TimerStart(&bseTimer, 100);
+			  timerStart(&bseTimer, 100);
 			  bseFail = 1;
 		  }
           else {
-        	  timerResets(&bseTimer);
+        	  timerReset(&bseTimer);
 		  	  bseFail = 0;
            }
 
-		  if (timeExpires(&appsTimer)){ Inverter_DisableInverter(); }
-		  if (timeExpires(&bseTimer)){ Inverter_DisableInverter(); }
+		  if (timerExpires(&appsTimer)){ Inverter_DisableInverter(); }
+		  if (timerExpires(&bseTimer)){ Inverter_DisableInverter(); }
 
 		  if (bseGradient < 0.0) { bseGradient = 0.0; }
 		  if (bseGradient > 100.0) { bseGradient = 100.0; }
