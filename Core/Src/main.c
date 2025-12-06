@@ -194,26 +194,6 @@ int main(void)
 	  HAL_GPIO_TogglePin(GPIOB, LD3_Pin);
 	  HAL_Delay(1000);
   }
-
-void timerStart(Timer *t, uint32_t duration) {
-	if (!t->hasStarted) {
-		t->curTick = HAL_GetTick();
-		t->duration = duration;
-		t->hasStarted = 1;
-	}
-}
-
-void timerReset(Timer *t) {
-	t->duration = 0;
-	t->hasStarted = 0;
-}
-
-uint8_t timerExpires(Timer *t) {
-	if (t->hasStarted) {
-		if ((HAL_GetTick() - t->curTick) >= t->duration) { return 1; }
-	}
-	return 0;
-}
   /* USER CODE END 2 */
 
   /* Infinite loop */
