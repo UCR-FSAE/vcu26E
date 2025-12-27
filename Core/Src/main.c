@@ -160,6 +160,9 @@ int main(void)
 	  			  // Current State should be implausible
 	  		  }
 	  		  break;
+	  	  case IMPLAUSIBLE:
+	  		  	  // to implement implausiility
+	  		  break;
 	  }
 
 	  HAL_Delay(10);

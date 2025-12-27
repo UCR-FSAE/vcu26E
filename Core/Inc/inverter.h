@@ -10,8 +10,6 @@
 
 #include "main.h"
 
-
-
 void Inverter_Init(void);
 void Inverter_Process(float torqueCommand);
 void Inverter_EnableInverter(void);
