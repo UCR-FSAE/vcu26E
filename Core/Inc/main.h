@@ -32,6 +32,9 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "inverter.h"
+#include "initialization.h"
+#include "active.h"
+#include "rtd.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

@@ -22,7 +22,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -74,26 +73,13 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
-
-float appsRaw;
-float bseRaw;
-float appsGradient;
-float bseGradient;
-
-// configuration and calibration variables
-float appsMin = 		2.0; // 2v
-float appsMax = 		3.95; // 3.8
-float bseMin = 			1.58933; // 1v
-float bseMax = 			3.25; // 3.25
-float bseThreshold = 	40.0; // activation thresholds for the brakes
-char RTDActive = 		0; // bool for ready to drive
-float torqueCommand = 	0.0; // torque command which will be sent to the inverter
-char InverterReady = 	0;
-uint16_t delay = 		30;	// delay length in between loop executions
-
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
+char InverterActive = 0;
+char RTDActive = 0;
 
+typedef enum {INIT, ACTIVE, IMPLAUSIBLE} states;
+static states CurrentState = INIT;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -112,8 +98,6 @@ static void MX_ADC3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-CAN_RxHeaderTypeDef   RxHeader;
-uint8_t               RxData[8];
 /* USER CODE END 0 */
 
 /**
@@ -154,120 +138,32 @@ int main(void)
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
-
-  Inverter_Init();
-	for (int i = 0; i < 2; i++) {
-		  HAL_GPIO_TogglePin(GPIOB, LD1_Pin);
-		  HAL_GPIO_TogglePin(GPIOB, LD2_Pin);
-		  HAL_GPIO_TogglePin(GPIOB, LD3_Pin);
-		  HAL_Delay(1000);
-	}
-
-//  while (InverterReady == 0) {
-//		Inverter_Init();
-//	    // Check if there are messages in FIFO0
-//	    if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0)
-//	    {
-//		  HAL_GPIO_TogglePin(GPIOB, LD1_Pin);
-//
-//
-//	        if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
-//	        {
-//	        	if(RxHeader.StdId == 0x0AA) {
-//	        		if (RxData[6] & 0x01) {
-//	    	        	InverterReady = 1;
-//	    				// toggles for 1 second on activation of the inverter
-//	    				for (int i = 0; i < 2; i++) {
-//	    				  HAL_GPIO_TogglePin(GPIOB, LD1_Pin);
-//	    				  HAL_GPIO_TogglePin(GPIOB, LD2_Pin);
-//	    				  HAL_GPIO_TogglePin(GPIOB, LD3_Pin);
-//	    				  HAL_Delay(1000);
-//	    				}
-//	        		}
-//
-//				}
-//
-//	        }
-//	    }
-//	    HAL_Delay(10);  // Optional: add small delay to reduce CPU usage
-//  }
-
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	while (1)
-	  {
-	      static float appsPrev = 0.0f;          // previous filtered voltage
-	      static float appsSlewVPerS = 1.5f;     // max allowed V/sec change (tune as needed)
-	      static float appsRaw0 = 0.0f, appsRaw1 = 0.0f, appsRaw2 = 0.0f; // rolling raw samples
-
-	      HAL_ADC_Start(&hadc3);
-	      if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-	          appsRaw = (((float) (HAL_ADC_GetValue(&hadc3)) / (float) (4095.0)) * 5.0);
-	      }
-	      HAL_ADC_Stop(&hadc3);
-
-	      // simple median-of-3 to reject single-sample spikes
-	      // push new sample into history
-	      appsRaw0 = appsRaw1;
-	      appsRaw1 = appsRaw2;
-	      appsRaw2 = appsRaw;
-	      // median-of-3 on copies so history isn't mutated
-	      float a = appsRaw0, b = appsRaw1, c = appsRaw2;
-	      if (a > b) { float t = a; a = b; b = t; }
-	      if (b > c) { float t = b; b = c; c = t; }
-	      if (a > b) { float t = a; a = b; b = t; }
-	      float appsMed = b;
-
-	      const float appsDt = 0.001f * delay; // delay is in ms
-	      float appsDv = appsMed - appsPrev;
-	      float appsMaxDv = appsSlewVPerS * appsDt;
-	      if (appsDv >  appsMaxDv) appsMed = appsPrev + appsMaxDv;
-	      if (appsDv < -appsMaxDv) appsMed = appsPrev - appsMaxDv;
-	      appsPrev = appsMed;
-
-	      // use filtered value going forward
-	      appsRaw = appsMed;
-
-	      HAL_ADC_Start(&hadc1);
-	      if (HAL_ADC_PollForConversion(&hadc1, 1) == HAL_OK) {
-	          bseRaw = (((float) (HAL_ADC_GetValue(&hadc1)) / (float) (4095.0)) * 5.0);
-	      }
-	      HAL_ADC_Stop(&hadc1);
-
-	      bseGradient = (44.44 * (bseRaw-1));
-	      torqueCommand = 2*(513.924 * (appsRaw) - 1080); // 0-1000
-
-	      // brake light logic
-	      if (bseGradient > bseThreshold) { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, SET); }
-	      else { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET); }
-
-//	      if (RTDActive == 0) {
-//	          if (bseGradient > bseThreshold && HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
-//	              uint32_t startTick = HAL_GetTick();
-//	              HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, SET);
-//	              while(HAL_GetTick() - startTick < 1500) {}
-//	              HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, RESET);
-//	              RTDActive = 1;
-//	          }
-//	      }
-//	      else {
-//	          if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
-	          if (bseGradient < 0.0) { bseGradient = 0.0; }
-	          if (bseGradient > 100.0) { bseGradient = 100.0; }
-	          if (bseGradient > bseThreshold) { torqueCommand = 0.0; }
-	          else {
-	              if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
-	              if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
-	          }
-	          Inverter_Process(torqueCommand);
-//	      }
-
-	        // delay to optimize inverter performance
-	      HAL_Delay(delay);
+  while (1) {
+	  switch(CurrentState) {
+	  	  case INIT:
+	  		  if (Inverter_Initialization() == 1) {
+	  			  CurrentState = ACTIVE;
+	  		  }
+	  		  else {
+	  			  CurrentState = INIT;
+	  		  }
+	  		  break;
+	  	  case ACTIVE:
+	  		  if (Drive() == 1) {
+	  			  CurrentState = ACTIVE;
+	  		  }
+	  		  else {
+	  			  // Current State should be implausible
+	  		  }
+	  		  break;
 	  }
+
+	  HAL_Delay(10);
+  }
 
     /* USER CODE END WHILE */
 

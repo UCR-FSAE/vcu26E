@@ -8,8 +8,6 @@
 #include "inverter.h"
 
 extern CAN_HandleTypeDef hcan1;
-static uint16_t torqueCommand = 0;
-static uint16_t prevTorqueCommand = 0;
 
 void Inverter_Init(void) {
 	  Inverter_DisableInverter();
