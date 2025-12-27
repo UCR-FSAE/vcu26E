@@ -13,11 +13,11 @@ static uint16_t prevTorqueCommand = 0;
 
 void Inverter_Init(void) {
 	  Inverter_DisableInverter();
-	  HAL_Delay(100);
-	  Inverter_ClearInverterFaults();
-	  HAL_Delay(100);
+	  HAL_Delay(500);
+//	  Inverter_ClearInverterFaults();
+//	  HAL_Delay(500);
 	  Inverter_EnableInverter();
-	  HAL_Delay(100);
+	  HAL_Delay(500);
 
 	  // read can messages for inverter awake and then toggle a status led
 }
@@ -157,7 +157,7 @@ void Inverter_EnableInverter(void)
 
 void Inverter_DisableInverter(void)
 {
-  Inverter_TransmitCANMessage(0, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_DISABLE);
+  Inverter_TransmitCANMessage(0, 0, Inverter_INVERTER_DISABLE);
 }
 
 
