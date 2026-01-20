@@ -41,7 +41,7 @@ char Drive(void) {
 	  appsRaw = (((float) (HAL_ADC_GetValue(&hadc3)) / (float) (4095.0)) * 5.0);
 	}
 	HAL_ADC_Stop(&hadc3);
-
+ww
 	// brakes pedal data collection
 	HAL_ADC_Start(&hadc1);
 	if (HAL_ADC_PollForConversion(&hadc1, 1) == HAL_OK) {
