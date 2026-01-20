@@ -31,13 +31,13 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "inverter.h"
-#include "initialization.h"
-#include "active.h"
+#include <active.h>		// Inverter and ADC collection functions
+#include <util.h>		// Math helper functions
 #include "rtd.h"
+
 /* USER CODE END Includes */
 
-/* Exported types ------------------------------------------------------------*/
+/* Exported types ------s------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 
 /* USER CODE END ET */

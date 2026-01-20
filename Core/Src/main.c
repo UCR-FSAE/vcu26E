@@ -22,6 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,10 +77,17 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 char InverterActive = 0;
-char RTDActive = 0;
 
-typedef enum {INIT, ACTIVE, IMPLAUSIBLE} states;
-static states CurrentState = INIT;
+float bseThreshold = 	40.0; // activation thresholds for the brakes
+
+uint32_t appsRaw;
+uint32_t bseRaw;
+uint32_t appsFiltered;
+float torqueCommand;
+uint32_t bseGradient;
+
+//typedef enum {INIT, ACTIVE, IMPLAUSIBLE} states;
+//static states CurrentState = INIT;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -143,27 +151,21 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
-	  switch(CurrentState) {
-	  	  case INIT:
-	  		  if (Inverter_Initialization() == 1) {
-	  			  CurrentState = ACTIVE;
-	  		  }
-	  		  else {
-	  			  CurrentState = INIT;
-	  		  }
-	  		  break;
-	  	  case ACTIVE:
-	  		  if (Drive() == 1) {
-	  			  CurrentState = ACTIVE;
-	  		  }
-	  		  else {
-	  			  // Current State should be implausible
-	  		  }
-	  		  break;
-	  	  case IMPLAUSIBLE:
-	  		  	  // to implement implausiility
-	  		  break;
-	  }
+	  appsRaw = ADC_APPSCollection();
+	  bseRaw = ADC_BSECollection();
+
+	  appsFiltered = APPS_SlewFilter(appsRaw);
+	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
+	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
+
+      if (bseGradient < 0.0) { bseGradient = 0.0; }
+      if (bseGradient > 100.0) { bseGradient = 100.0; }
+      if (bseGradient > bseThreshold) { torqueCommand = 0.0; }
+      else {
+          if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
+          if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
+      }
+      Inverter_Process(torqueCommand);
 
 	  HAL_Delay(10);
   }

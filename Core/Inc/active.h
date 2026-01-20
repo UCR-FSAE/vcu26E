@@ -1,17 +1,34 @@
 /*
- * active.h
+ * inverter.h
  *
- *  Created on: Dec 26, 2025
+ *  Created on: Oct 3, 2025
  *      Author: Justin Im
  */
 
-#ifndef SRC_ACTIVE_H_
-#define SRC_ACTIVE_H_
+#ifndef INC_ACTIVE_H_
+#define INC_ACTIVE_H_
 
 #include "main.h"
 
-char Drive(void);
 
-float appsSlewFilter(float);
+// ADC Collection Functions
 
-#endif /* SRC_ACTIVE_H_ */
+
+// Inverter functions.
+void Inverter_Init(void);
+void Inverter_Process(float torqueCommand);
+void Inverter_EnableInverter(void);
+void Inverter_DisableInverter(void);
+void Inverter_ClearInverterFaults(void);
+void Inverter_ProcessAnalogInputs(void);
+void Inverter_TransmitCANMessage(uint16_t torque, uint8_t direction, uint8_t inverterEnable);
+
+#define Inverter_INVERTER_COMMAND_ID 0x0C0
+#define Inverter_INVERTER_CLEAR_ID 0x0C1
+
+#define Inverter_DIRECTION_FORWARD 0x00
+#define Inverter_DIRECTION_REVERSE 0x01
+#define Inverter_INVERTER_ENABLE  0x01
+#define Inverter_INVERTER_DISABLE 0x00
+
+#endif /* INC_ACTIVE_H_ */

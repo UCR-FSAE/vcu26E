@@ -1,100 +1,202 @@
 /*
- * active.c
+ * inverter.c
  *
- *  Created on: Dec 26, 2025
+ *  Created on: Oct 3, 2025
  *      Author: Justin Im
  */
 
-#include "active.h"
-#include "rtd.h"
+#include <active.h>
 
-static float appsPrev = 0.0f;          // previous filtered voltage
-static float appsSlewVPerS = 1.5f;     // max allowed V/sec change (tune as needed)
-static float appsRaw0 = 0.0f, appsRaw1 = 0.0f, appsRaw2 = 0.0f; // rolling raw samples
+extern CAN_HandleTypeDef hcan1;
 
-float appsRaw;
-float bseRaw;
-float appsGradient;
-float bseGradient;
+void Inverter_Init(void) {
+	  Inverter_DisableInverter();
+	  HAL_Delay(500);
+//	  Inverter_ClearInverterFaults();
+//	  HAL_Delay(500);
+	  Inverter_EnableInverter();
+	  HAL_Delay(500);
 
-
-// configuration and calibration variables
-float appsMin = 		2.0; // 2v
-float appsMax = 		3.95; // 3.8
-float bseMin = 			1.58933; // 1v
-float bseMax = 			3.25; // 3.25
-float bseThreshold = 	40.0; // activation thresholds for the brakes
-float torqueCommand = 	0.0; // torque command which will be sent to the inverter
-char InverterReady = 	0;
-uint16_t delay = 		30;	// delay length in between loop executions
-
-
-extern ADC_HandleTypeDef hadc1;
-extern ADC_HandleTypeDef hadc3;
-extern char RTDActive;
-extern char InverterActive;
-
-char Drive(void) {
-	// accelerator pedal data collection
-	HAL_ADC_Start(&hadc3);
-	if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-	  appsRaw = (((float) (HAL_ADC_GetValue(&hadc3)) / (float) (4095.0)) * 5.0);
-	}
-	HAL_ADC_Stop(&hadc3);
-ww
-	// brakes pedal data collection
-	HAL_ADC_Start(&hadc1);
-	if (HAL_ADC_PollForConversion(&hadc1, 1) == HAL_OK) {
-	  bseRaw = (((float) (HAL_ADC_GetValue(&hadc1)) / (float) (4095.0)) * 5.0);
-	}
-	HAL_ADC_Stop(&hadc1);
-
-	bseGradient = (44.44 * (bseRaw-1));
-	torqueCommand = 2*(513.924 * (appsSlewFilter(appsRaw)) - 1080); // 0-1000
-
-	// brake light logic
-	if (bseGradient > bseThreshold) { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, SET); }
-	else { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET); }
-
-	RTDActive = RTDCheck(bseGradient, bseThreshold);
-
-	if (RTDActive && InverterActive) {
-		if (bseGradient < 0.0) { bseGradient = 0.0; }
-		if (bseGradient > 100.0) { bseGradient = 100.0; }
-		if (bseGradient > bseThreshold) { torqueCommand = 0.0; }
-		else {
-		  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
-		  if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
-		}
-		Inverter_Process(torqueCommand);
-	}
-
-	// return 0 if there is an implausibility (to be implemented)
-
-	return 1;
+	  // read can messages for inverter awake and then toggle a status led
 }
 
-float appsSlewFilter(float appsRaw) {
-	// simple median-of-3 to reject single-sample spikes
-	// push new sample into history
-	appsRaw0 = appsRaw1;
-	appsRaw1 = appsRaw2;
-	appsRaw2 = appsRaw;
+/**
+  * @brief  Process Inverter main functionality (to be called periodically)
+  * @retval None
+  */
+void Inverter_Process(float torqueCommand) {
+//	if (torqueCommand < 250.0) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+//	}
+//	else if (torqueCommand < 500.0) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+//	}
+//	else if (torqueCommand < 750.0) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+//	}
+//	else if (torqueCommand <= 1000.0) {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+//	}
+//	else {
+//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+//	}
+	Inverter_TransmitCANMessage((uint16_t) torqueCommand, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE);
+}
 
-	// median-of-3 on copies so history isn't mutated
-	float a = appsRaw0, b = appsRaw1, c = appsRaw2;
-	if (a > b) { float t = a; a = b; b = t; }
-	if (b > c) { float t = b; b = c; c = t; }
-	if (a > b) { float t = a; a = b; b = t; }
-	float appsMed = b;
+/**
+  * @brief  Transmit CAN message to inverter
+  * @param  torque: Torque command value (0-32767)
+  * @param  direction: Direction command (0=forward, 1=reverse)
+  * @param  inverterEnable: Inverter enable state (0=disable, 1=enable)
+  * @retval None
+  */
+void Inverter_TransmitCANMessage(uint16_t torque, uint8_t direction, uint8_t inverterEnable)
+{
+  CAN_TxHeaderTypeDef txHeader;
+  uint8_t txData[8];
+  uint32_t txMailbox;
+  HAL_StatusTypeDef status;
 
-	const float appsDt = 0.001f * delay; // delay is in ms
-	float appsDv = appsMed - appsPrev;
-	float appsMaxDv = appsSlewVPerS * appsDt;
-	if (appsDv >  appsMaxDv) appsMed = appsPrev + appsMaxDv;
-	if (appsDv < -appsMaxDv) appsMed = appsPrev - appsMaxDv;
-	appsPrev = appsMed;
+  /* Configure transmission */
+  txHeader.StdId = Inverter_INVERTER_COMMAND_ID;
+  txHeader.ExtId = 0;
+  txHeader.IDE = CAN_ID_STD;
+  txHeader.RTR = CAN_RTR_DATA;
+  txHeader.DLC = 8;
+  txHeader.TransmitGlobalTime = DISABLE;
 
-	// use filtered value going forward
-	return appsMed;
+  /* Pack torque command (little-endian) */
+  txData[0] = (uint8_t)(torque & 0xFF);
+  txData[1] = (uint8_t)((torque >> 8) & 0xFF);
+
+  /* Speed command (0 for torque control mode) */
+  txData[2] = 0;
+  txData[3] = 0;
+
+  /* Direction and inverter control */
+  txData[4] = direction;
+  txData[5] = inverterEnable;
+
+  /* Torque limits (using default) */
+  txData[6] = 0;
+  txData[7] = 0;
+
+  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0) {
+
+  }
+  else {
+	status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
+
+	if (status != HAL_OK) {
+//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+	    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) { Error_Handler(); }
+	}
+//	else { HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET); }
+  }
+}
+
+/**
+  * @brief  Enable inverter
+  * @retval None
+  */
+void Inverter_EnableInverter(void)
+{
+  Inverter_TransmitCANMessage(0, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE);
+
+  CAN_TxHeaderTypeDef txHeader;
+  uint8_t txData[8];
+  uint32_t txMailbox;
+  HAL_StatusTypeDef status;
+
+  /* Configure transmission */
+  txHeader.StdId = Inverter_INVERTER_COMMAND_ID;
+  txHeader.ExtId = 0;
+  txHeader.IDE = CAN_ID_STD;
+  txHeader.RTR = CAN_RTR_DATA;
+  txHeader.DLC = 8;
+  txHeader.TransmitGlobalTime = DISABLE;
+
+  txData[0] = (uint8_t) 0x00;
+  txData[1] = 1;
+
+  txData[2] = 0;
+  txData[3] = 0;
+
+  txData[4] = 0;
+  txData[5] = 1;
+
+  txData[6] = 0;
+  txData[7] = 0;
+
+  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0) {
+    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX0);
+    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX1);
+    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX2);
+  }
+
+  status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
+
+  if (status != HAL_OK) {
+    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) {
+      Error_Handler();
+    }
+  }
+}
+
+void Inverter_DisableInverter(void)
+{
+  Inverter_TransmitCANMessage(0, 0, Inverter_INVERTER_DISABLE);
+}
+
+
+void Inverter_ClearInverterFaults(void)
+{
+	  CAN_TxHeaderTypeDef txHeader;
+	  uint8_t txData[8];
+	  uint32_t txMailbox;
+	  HAL_StatusTypeDef status;
+
+	  /* Configure transmission */
+	  txHeader.StdId = Inverter_INVERTER_CLEAR_ID;
+	  txHeader.ExtId = 0;
+	  txHeader.IDE = CAN_ID_STD;
+	  txHeader.RTR = CAN_RTR_DATA;
+	  txHeader.DLC = 8;
+	  txHeader.TransmitGlobalTime = DISABLE;
+
+	  txData[0] = (uint8_t) 0x14; // command id for clearing fault
+	  txData[1] = 0;
+
+	  txData[2] = 1; // command to clear faults
+	  txData[3] = 0;
+
+	  txData[4] = 0;
+	  txData[5] = 0;
+
+	  txData[6] = 0;
+	  txData[7] = 0;
+
+	  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0) {
+	    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX0);
+	    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX1);
+	    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX2);
+	  }
+
+	  status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
+
+	  if (status != HAL_OK) {
+	    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) {
+	      Error_Handler();
+	    }
+	  }
 }
