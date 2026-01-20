@@ -5,8 +5,8 @@
  *      Author: Justin Im
  */
 
-#ifndef INC_ACTIVE_H_
-#define INC_ACTIVE_H_
+#ifndef INC_INVERTER_H_
+#define INC_INVERTER_H_
 
 #include "main.h"
 
@@ -31,4 +31,4 @@ void Inverter_TransmitCANMessage(uint16_t torque, uint8_t direction, uint8_t inv
 #define Inverter_INVERTER_ENABLE  0x01
 #define Inverter_INVERTER_DISABLE 0x00
 
-#endif /* INC_ACTIVE_H_ */
+#endif /* INC_INVERTER_H_ */

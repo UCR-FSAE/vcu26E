@@ -5,7 +5,7 @@
  *      Author: Justin Im
  */
 
-#include <active.h>
+#include <inverter.h>
 
 extern CAN_HandleTypeDef hcan1;
 

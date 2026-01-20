@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <active.h>		// Inverter and ADC collection functions
+#include <inverter.h>		// Inverter and ADC collection functions
 #include <util.h>		// Math helper functions
 #include "rtd.h"
 
