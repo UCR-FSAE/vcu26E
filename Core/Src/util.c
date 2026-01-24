@@ -86,6 +86,24 @@ uint32_t APPS_SlewFilter(uint32_t appsADC) {
 }
 
 
+char BSE_ImpausabilityCheck(Timer*bseTimer, float bseRaw)
+{
+ if (bseRaw < bseMin || bseRaw > bseMax){
+      TimerStart(bseTimer, 100);
+      }
+            else { timerResets(bseTimer); 
+            }
+            
+ if (bseRaw < bseMin || bseRaw > bseMax){
+			  timerStart(bseTimer, 100);
+		  }
 
+          else {
+        	  timerReset(bseTimer);
+           }
 
+ if (timeExpires(bseTimer)){
+			  Inverter_DisableInverter();
+		  }
+    }
 

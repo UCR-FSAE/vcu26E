@@ -22,6 +22,22 @@ float Drive_CalculateTorqueCommand(uint32_t appsRaw);
 float Drive_CalculateBrakesActivation(uint32_t bseRaw);
 
 // Plausibility Check Functions
+#ifndef TIMER_STRUCT
+#define TIMER_STRUCT
+
+typedef struct {
+    uint32_t curTick;
+    uint32_t duration;
+    uint8_t hasStarted;
+} Timer;
+
+#endif
+
+char BSE_ImplausibilityCheck(bseRaw, &bseTimer);
+void timerStart(Timer *bseTimer, uint32_t duration);
+void timerReset(Timer *bseTimer);
+char timerExpires(Timer *bseTimer);
+
 
 // FIlter Functions
 uint32_t APPS_SlewFilter(uint32_t appsADC);

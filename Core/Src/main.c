@@ -79,6 +79,7 @@ uint8_t RxData[8];
 char InverterActive = 0;
 
 float bseThreshold = 	40.0; // activation thresholds for the brakes
+Timer bseTimer = {0};
 
 uint32_t appsRaw;
 uint32_t bseRaw;
@@ -162,6 +163,11 @@ int main(void)
 	  appsFiltered2 = APPS_SlewFilter(APPSData[1]);
 
 	  // Plausibility Functions called here
+
+if (BSE_ImpausabilityCheck(&bseTimer, bseRaw)) {
+    Inverter_DisableInverter();
+    torqueCommand = 0.0f;
+}
 
 
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
