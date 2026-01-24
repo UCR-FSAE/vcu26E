@@ -24,7 +24,7 @@ float Drive_CalculateBrakesActivation(uint32_t bseRaw);
 // Plausibility Check Functions
 
 // FIlter Functions
-uint32_t APPS_SlewFilter(uint32_t appsADC);
+uint32_t APPS_SlewFilter(uint32_t appsADC, char channel);
 
 
 

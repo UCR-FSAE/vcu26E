@@ -158,8 +158,8 @@ int main(void)
 	  ADC_APPSCollection(APPSData);
 	  bseRaw = ADC_BSECollection();
 
-	  appsFiltered1 = APPS_SlewFilter(APPSData[0]);
-	  appsFiltered2 = APPS_SlewFilter(APPSData[1]);
+	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
+	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
 
 	  // Plausibility Functions called here
 
