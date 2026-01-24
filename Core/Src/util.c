@@ -65,6 +65,47 @@ float Drive_CalculateBrakesActivation(uint32_t bseRaw) {
 	return (44.44 * (bseRaw-1));
 }
 
+char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2) {
+	t->hasFailed = 0;
+	if (appsFiltered1/appsFiltered2 > 0.1)
+		t->hasFailed = 1;
+	if (appsFiltered1 > appsMax || appsFiltered1 < appsMin)
+		t->hasFailed = 1;
+	if (appsFiltered2 > appsMax || appsFiltered2 < appsMin)
+		t->hasFailed = 1;
+
+	if (t->hasFailed) {
+		timerStart(t, 100);
+	} else {
+		timerReset(t);
+	}
+
+	if (timerExpires(t)){
+		return 0;
+	}
+	return 1;
+}
+
+void timerStart(Timer *t, uint32_t duration) {
+	if (!t->hasStarted) {
+		t->curTick = HAL_GetTick();
+		t->duration = duration;
+		t->hasStarted = 1;
+	}
+}
+
+void timerReset(Timer *t) {
+	t->duration = 0;
+	t->hasStarted = 0;
+	t->hasFailed = 0;
+}
+
+char timerExpires(Timer *t) {
+	if (t->hasStarted) {
+		if ((HAL_GetTick() - t->curTick) >= t->duration) { return 1; }
+	}
+	return 0;
+}
 
 // Slew Filter for APPS
 uint32_t APPS_SlewFilter(uint32_t appsADC, char channel) {
@@ -116,6 +157,7 @@ uint32_t APPS_SlewFilter(uint32_t appsADC, char channel) {
 	    return appsMed;
 	}
 }
+
 
 
 

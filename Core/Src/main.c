@@ -74,6 +74,15 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
+//typedef struct {
+//	uint32_t curTick;
+//	uint32_t duration;
+//	uint8_t hasStarted;
+//} Timer;
+
+Timer appsTimer = {0};
+Timer bseTimer = {0};
+
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 char InverterActive = 0;
@@ -85,6 +94,7 @@ uint32_t bseRaw;
 uint32_t appsFiltered;
 uint32_t appsFiltered1;
 uint32_t appsFiltered2;
+float appsDeviation;
 float torqueCommand;
 uint32_t bseGradient;
 
@@ -120,7 +130,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -162,7 +171,10 @@ int main(void)
 	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
 
 	  // Plausibility Functions called here
-
+	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
+		  Inverter_DisableInverter();
+		  torqueCommand = 0.0;
+	  }
 
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
 
