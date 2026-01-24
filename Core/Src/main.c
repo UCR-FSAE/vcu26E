@@ -162,8 +162,15 @@ int main(void)
 
       if (bseGradient < 0.0) { bseGradient = 0.0; }
       if (bseGradient > 100.0) { bseGradient = 100.0; }
-      if (bseGradient > bseThreshold) { torqueCommand = 0.0; }
+
+      // Brakes Activated = 0.0 torque, brake lights activated
+      if (bseGradient > bseThreshold) {
+    	  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
+    	  torqueCommand = 0.0;
+      }
+      // Brakes !Activated = calculated torque, brake lights not activated
       else {
+    	  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
           if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
           if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
       }
