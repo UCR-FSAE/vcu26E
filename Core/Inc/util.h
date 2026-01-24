@@ -29,12 +29,13 @@ typedef struct {
     uint32_t curTick;
     uint32_t duration;
     uint8_t hasStarted;
+    char hasFailed;
 } Timer;
 
 #endif
 
-char BSE_ImplausibilityCheck(bseRaw, &bseTimer);
 char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2);
+char BSE_ImplausibilityCheck(Timer *bseTimer, float bseRaw);
 void timerStart(Timer *t, uint32_t duration);
 void timerReset(Timer *t);
 char timerExpires(Timer *t);

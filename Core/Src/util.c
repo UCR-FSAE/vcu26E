@@ -86,6 +86,29 @@ char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2
 	return 1;
 }
 
+char BSE_ImplausibilityCheck(Timer*bseTimer, float bseRaw)
+{
+	if (bseRaw < bseMin || bseRaw > bseMax){
+      timerStart(bseTimer, 100);
+	}
+	else {
+		timerReset(bseTimer);
+	}
+
+	if (bseRaw < bseMin || bseRaw > bseMax){
+		timerStart(bseTimer, 100);
+	}
+
+	else {
+		timerReset(bseTimer);
+	}
+
+	if (timerExpires(bseTimer)) {
+		return 0;
+	}
+	return 1;
+}
+
 void timerStart(Timer *t, uint32_t duration) {
 	if (!t->hasStarted) {
 		t->curTick = HAL_GetTick();
@@ -159,25 +182,5 @@ uint32_t APPS_SlewFilter(uint32_t appsADC, char channel) {
 }
 
 
-char BSE_ImpausabilityCheck(Timer*bseTimer, float bseRaw)
-{
- if (bseRaw < bseMin || bseRaw > bseMax){
-      TimerStart(bseTimer, 100);
-      }
-            else { timerResets(bseTimer); 
-            }
-            
- if (bseRaw < bseMin || bseRaw > bseMax){
-			  timerStart(bseTimer, 100);
-		  }
-
-          else {
-        	  timerReset(bseTimer);
-           }
-
- if (timeExpires(bseTimer)){
-			  Inverter_DisableInverter();
-		  }
-    }
 
 
