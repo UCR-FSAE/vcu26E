@@ -14,7 +14,7 @@ extern ADC_HandleTypeDef hadc3;
 
 
 // ADC Collection
-uint32_t ADC_APPSCollection();
+void ADC_APPSCollection(uint32_t *readings);
 uint32_t ADC_BSECollection();
 
 // Torque Command Calculation Functions

@@ -23,14 +23,19 @@ uint16_t delay = 		30;	// delay length in between loop executions
 
 
 // APPS ADC Collection
-uint32_t ADC_APPSCollection() {
+void ADC_APPSCollection(uint32_t *readings) {
 	HAL_ADC_Start(&hadc3);
+
+	// ADC Input for APPS 1
 	if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-		return ((float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * 5.0);
+		readings[0] = (float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * 5.0;
 	}
-	else {
-		return 0b1111111111111111111111111111111;
+	// ADC Input for APPS 2
+	if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
+		readings[1] = (float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * 5.0;
 	}
+
+	HAL_ADC_Stop(&hadc3);
 }
 
 // BSE ADC Collection
