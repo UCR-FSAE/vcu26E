@@ -83,6 +83,8 @@ float bseThreshold = 	40.0; // activation thresholds for the brakes
 uint32_t appsRaw;
 uint32_t bseRaw;
 uint32_t appsFiltered;
+uint32_t appsFiltered1;
+uint32_t appsFiltered2;
 float torqueCommand;
 uint32_t bseGradient;
 
@@ -156,7 +158,14 @@ int main(void)
 	  ADC_APPSCollection(APPSData);
 	  bseRaw = ADC_BSECollection();
 
-	  appsFiltered = APPS_SlewFilter(appsRaw);
+	  appsFiltered1 = APPS_SlewFilter(APPSData[0]);
+	  appsFiltered2 = APPS_SlewFilter(APPSData[1]);
+
+	  // Plausibility Functions called here
+
+
+	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
+
 	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
