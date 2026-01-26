@@ -173,8 +173,8 @@ int main(void)
 	  // Plausibility Functions called here
 
      if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) {
-       Inverter_DisableInverter();
-       torqueCommand = 0.0;
+        Inverter_DisableInverter();
+        torqueCommand = 0.0;
      }
 
 	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
