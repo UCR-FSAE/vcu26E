@@ -83,6 +83,8 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 Timer appsTimer = {0};
 Timer bseTimer = {0};
 
+char isPlausible = 0;
+
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 char InverterActive = 0;
@@ -91,14 +93,13 @@ float bseThreshold = 	40.0; // activation thresholds for the brakes
 
 uint32_t appsRaw;
 uint32_t bseRaw;
-uint32_t appsFiltered;
-uint32_t appsFiltered1;
-uint32_t appsFiltered2;
-float appsDeviation;
+float appsFiltered;
+float appsFiltered1;
+float appsFiltered2;
 float torqueCommand;
-uint32_t bseGradient;
+float bseGradient;
 
-uint32_t APPSData[2];
+float APPSData[2];
 
 //typedef enum {INIT, ACTIVE, IMPLAUSIBLE} states;
 //static states CurrentState = INIT;
@@ -145,7 +146,6 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -174,12 +174,12 @@ int main(void)
 
      if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) {
         Inverter_DisableInverter();
-        torqueCommand = 0.0;
+        isPlausible = 1;
      }
 
 	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
 		  Inverter_DisableInverter();
-		  torqueCommand = 0.0;
+		  isPlausible = 1;
 	  }
 
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
@@ -187,12 +187,16 @@ int main(void)
 	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
-      if (bseGradient < 0.0) { bseGradient = 0.0; }
-      if (bseGradient > 100.0) { bseGradient = 100.0; }
+	  // Sets torqueCommand to 0 if an implausibility occurs
+	  if (!isPlausible) { torqueCommand = 0; }
 
-      // Brakes Activated = 0.0 torque, brake lights activated
-      if (bseGradient > bseThreshold) {
-    	  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
+     if (bseGradient < 0.0) { bseGradient = 0.0; }
+     if (bseGradient > 100.0) { bseGradient = 100.0; }
+
+     // Brakes Activated = 0.0 torque, brake lights activated
+     if (bseGradient > bseThreshold) {
+   	  if (torqueCommand > 0) { isPlausible = 1; }
+        HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
     	  torqueCommand = 0.0;
       }
       // Brakes !Activated = calculated torque, brake lights not activated
@@ -352,9 +356,9 @@ static void MX_ADC3_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Channel = ADC_CHANNEL_5;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -362,7 +366,7 @@ static void MX_ADC3_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
   {

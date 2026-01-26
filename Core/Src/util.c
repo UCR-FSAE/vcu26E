@@ -29,16 +29,19 @@ uint16_t delay = 		30;			// delay length in between loop executions
 
 
 // APPS ADC Collection
-void ADC_APPSCollection(uint32_t *readings) {
-	HAL_ADC_Start(&hadc3);
+void ADC_APPSCollection(float *readings) {
 
 	// ADC Input for APPS 1
-	if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-		readings[0] = (float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * 5.0;
+	HAL_ADC_Start(&hadc3);
+	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
+		uint32_t raw1 = HAL_ADC_GetValue(&hadc3);
+		readings[0] = ( (float) raw1 / (float) (4095.0)) * 3.3;
 	}
 	// ADC Input for APPS 2
-	if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-		readings[1] = (float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * 5.0;
+	HAL_ADC_Start(&hadc3);
+	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
+		uint32_t raw2 = HAL_ADC_GetValue(&hadc3);
+		readings[1] = ( (float) raw2 / (float) (4095.0)) * 3.3;
 	}
 
 	HAL_ADC_Stop(&hadc3);
@@ -56,18 +59,18 @@ uint32_t ADC_BSECollection() {
 }
 
 // torque calculations
-float Drive_CalculateTorqueCommand(uint32_t appsRaw) {
+float Drive_CalculateTorqueCommand(float appsRaw) {
 	return 2*(513.924 * (appsRaw) - 1080); // 0-1000
 }
 
 // brakes percentage calculations
-float Drive_CalculateBrakesActivation(uint32_t bseRaw) {
+float Drive_CalculateBrakesActivation(float bseRaw) {
 	return (44.44 * (bseRaw-1));
 }
 
 char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2) {
 	t->hasFailed = 0;
-	if (appsFiltered1/appsFiltered2 > 0.1)
+	if ((appsFiltered1-appsFiltered2) / 3.3 > 0.1)
 		t->hasFailed = 1;
 	if (appsFiltered1 > appsMax || appsFiltered1 < appsMin)
 		t->hasFailed = 1;
@@ -81,9 +84,9 @@ char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2
 	}
 
 	if (timerExpires(t)){
-		return 0;
+		return 1;
 	}
-	return 1;
+	return 0;
 }
 
 char BSE_ImplausibilityCheck(Timer*bseTimer, float bseRaw)
@@ -104,9 +107,9 @@ char BSE_ImplausibilityCheck(Timer*bseTimer, float bseRaw)
 	}
 
 	if (timerExpires(bseTimer)) {
-		return 0;
+		return 1;
 	}
-	return 1;
+	return 0;
 }
 
 void timerStart(Timer *t, uint32_t duration) {
@@ -131,7 +134,7 @@ char timerExpires(Timer *t) {
 }
 
 // Slew Filter for APPS
-uint32_t APPS_SlewFilter(uint32_t appsADC, char channel) {
+float APPS_SlewFilter(float appsADC, char channel) {
 
 	if (channel == 1) {
 	    // simple median-of-3 to reject single-sample spikes

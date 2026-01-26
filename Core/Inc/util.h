@@ -14,12 +14,12 @@ extern ADC_HandleTypeDef hadc3;
 
 
 // ADC Collection
-void ADC_APPSCollection(uint32_t *readings);
+void ADC_APPSCollection(float *readings);
 uint32_t ADC_BSECollection();
 
 // Torque Command Calculation Functions
-float Drive_CalculateTorqueCommand(uint32_t appsRaw);
-float Drive_CalculateBrakesActivation(uint32_t bseRaw);
+float Drive_CalculateTorqueCommand(float appsRaw);
+float Drive_CalculateBrakesActivation(float bseRaw);
 
 // Plausibility Check Functions
 #ifndef TIMER_STRUCT
@@ -41,7 +41,7 @@ void timerReset(Timer *t);
 char timerExpires(Timer *t);
 
 // FIlter Functions
-uint32_t APPS_SlewFilter(uint32_t appsADC, char channel);
+float APPS_SlewFilter(float appsADC, char channel);
 
 
 #endif /* INC_UTIL_H_ */
