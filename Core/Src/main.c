@@ -82,13 +82,13 @@ float bseThreshold = 	40.0; // activation thresholds for the brakes
 
 uint32_t appsRaw;
 uint32_t bseRaw;
-uint32_t appsFiltered;
-uint32_t appsFiltered1;
-uint32_t appsFiltered2;
+float appsFiltered;
+float appsFiltered1;
+float appsFiltered2;
 float torqueCommand;
 uint32_t bseGradient;
 
-uint32_t APPSData[2];
+float APPSData[2];
 
 //typedef enum {INIT, ACTIVE, IMPLAUSIBLE} states;
 //static states CurrentState = INIT;
@@ -136,7 +136,6 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -334,9 +333,9 @@ static void MX_ADC3_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Channel = ADC_CHANNEL_5;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -344,7 +343,7 @@ static void MX_ADC3_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
   {
