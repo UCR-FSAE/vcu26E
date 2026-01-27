@@ -172,23 +172,20 @@ int main(void)
 
 	  // Plausibility Functions called here
 
-     if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) {
-        Inverter_DisableInverter();
-        isPlausible = 1;
-     }
+     if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { isPlausible = 1; }
 
-	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
-		  Inverter_DisableInverter();
-		  isPlausible = 1;
-	  }
+	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { isPlausible = 1;}
 
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
 
 	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
-	  // Sets torqueCommand to 0 if an implausibility occurs
-	  if (!isPlausible) { torqueCommand = 0; }
+	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
+	  if (!isPlausible) {
+		  Inverter_DisableInverter();
+		  torqueCommand = 0;
+	  }
 
      if (bseGradient < 0.0) { bseGradient = 0.0; }
      if (bseGradient > 100.0) { bseGradient = 100.0; }

@@ -68,14 +68,13 @@ float Drive_CalculateBrakesActivation(float bseRaw) {
 	return (44.44 * (bseRaw-1));
 }
 
+// starts timing if an implausibility occurs
 char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2) {
 	t->hasFailed = 0;
-	if ((appsFiltered1-appsFiltered2) / 3.3 > 0.1)
-		t->hasFailed = 1;
-	if (appsFiltered1 > appsMax || appsFiltered1 < appsMin)
-		t->hasFailed = 1;
-	if (appsFiltered2 > appsMax || appsFiltered2 < appsMin)
-		t->hasFailed = 1;
+
+	if ((appsFiltered1-appsFiltered2) / 3.3 > 0.1) { t->hasFailed = 1; }
+	if (appsFiltered1 > appsMax || appsFiltered1 < appsMin) { t->hasFailed = 1; }
+	if (appsFiltered2 > appsMax || appsFiltered2 < appsMin) { t->hasFailed = 1; }
 
 	if (t->hasFailed) {
 		timerStart(t, 100);
@@ -83,9 +82,7 @@ char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2
 		timerReset(t);
 	}
 
-	if (timerExpires(t)){
-		return 1;
-	}
+	if (timerExpires(t)) { return 1; }
 	return 0;
 }
 
