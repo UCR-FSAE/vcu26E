@@ -19,13 +19,16 @@ static float appsRaw02 = 0.0f, appsRaw12 = 0.0f, appsRaw22 = 0.0f; 	// rolling r
 
 
 // configuration and calibration variables
-float appsMin = 		2.0; 		// 2v
-float appsMax = 		3.95; 		// 3.8
-float bseMin = 			1.58933; 	// 1v
-float bseMax = 			3.25; 		// 3.25
+float apps1Min = 		1.36; 		// 2v
+float apps1Max = 		2.97; 		// 3.8
+float apps2Min = 		1.53;
+float apps2Max = 		2.97;
+float bseMin = 			0.67; 	// 1v six seven
+float bseMax = 			2.28; 		// 3.25
 char RTDActive = 		0; 			// bool for ready to drive
 char InverterReady = 	0;
 uint16_t delay = 		30;			// delay length in between loop executions
+float vScale =			5.0;
 
 
 // APPS ADC Collection
@@ -35,13 +38,13 @@ void ADC_APPSCollection(float *readings) {
 	HAL_ADC_Start(&hadc3);
 	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
 		uint32_t raw1 = HAL_ADC_GetValue(&hadc3);
-		readings[0] = ( (float) raw1 / (float) (4095.0)) * 3.3;
+		readings[0] = ( (float) raw1 / (float) (4095.0)) * vScale;
 	}
 	// ADC Input for APPS 2
 	HAL_ADC_Start(&hadc3);
 	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
 		uint32_t raw2 = HAL_ADC_GetValue(&hadc3);
-		readings[1] = ( (float) raw2 / (float) (4095.0)) * 3.3;
+		readings[1] = ( (float) raw2 / (float) (4095.0)) * vScale;
 	}
 
 	HAL_ADC_Stop(&hadc3);
@@ -51,7 +54,7 @@ void ADC_APPSCollection(float *readings) {
 uint32_t ADC_BSECollection() {
 	HAL_ADC_Start(&hadc3);
 	if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-		return ((float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * 5.0);
+		return ((float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * vScale);
 	}
 	else {
 		return 0b1111111111111111111111111111111;
@@ -72,9 +75,9 @@ float Drive_CalculateBrakesActivation(float bseRaw) {
 char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2) {
 	t->hasFailed = 0;
 
-	if ((appsFiltered1-appsFiltered2) / 3.3 > 0.1) { t->hasFailed = 1; }
-	if (appsFiltered1 > appsMax || appsFiltered1 < appsMin) { t->hasFailed = 1; }
-	if (appsFiltered2 > appsMax || appsFiltered2 < appsMin) { t->hasFailed = 1; }
+	if (appsFiltered1 > apps1Max || appsFiltered1 < apps1Min) { t->hasFailed = 1; }
+	if (appsFiltered2 > apps2Max || appsFiltered2 < apps2Min) { t->hasFailed = 1; }
+	if ((appsFiltered1-appsFiltered2) / vScale > 0.1) { t->hasFailed = 1; }
 
 	if (t->hasFailed) {
 		timerStart(t, 100);
@@ -86,26 +89,17 @@ char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2
 	return 0;
 }
 
-char BSE_ImplausibilityCheck(Timer*bseTimer, float bseRaw)
-{
-	if (bseRaw < bseMin || bseRaw > bseMax){
-      timerStart(bseTimer, 100);
-	}
-	else {
-		timerReset(bseTimer);
+char BSE_ImplausibilityCheck(Timer* t, float bseRaw) {
+	t->hasFailed = 0;
+	if (bseRaw < bseMin || bseRaw > bseMax){ t->hasFailed = 1; }
+
+	if (t->hasFailed) {
+		timerStart(t, 100);
+	} else {
+		timerReset(t);
 	}
 
-	if (bseRaw < bseMin || bseRaw > bseMax){
-		timerStart(bseTimer, 100);
-	}
-
-	else {
-		timerReset(bseTimer);
-	}
-
-	if (timerExpires(bseTimer)) {
-		return 1;
-	}
+	if (timerExpires(t)) { return 1; }
 	return 0;
 }
 

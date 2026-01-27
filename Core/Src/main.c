@@ -83,7 +83,7 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 Timer appsTimer = {0};
 Timer bseTimer = {0};
 
-char isPlausible = 0;
+char implausibilityTriggered = 0;
 
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
@@ -172,9 +172,8 @@ int main(void)
 
 	  // Plausibility Functions called here
 
-     if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { isPlausible = 1; }
-
-	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { isPlausible = 1;}
+     if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
 
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
 
@@ -182,7 +181,7 @@ int main(void)
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
 	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
-	  if (!isPlausible) {
+	  if (implausibilityTriggered) {
 		  Inverter_DisableInverter();
 		  torqueCommand = 0;
 	  }
@@ -192,7 +191,7 @@ int main(void)
 
      // Brakes Activated = 0.0 torque, brake lights activated
      if (bseGradient > bseThreshold) {
-   	  if (torqueCommand > 0) { isPlausible = 1; }
+   	  if (torqueCommand > 0) { implausibilityTriggered = 1; }
         HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
     	  torqueCommand = 0.0;
       }

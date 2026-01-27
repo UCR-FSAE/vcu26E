@@ -25,31 +25,31 @@ void Inverter_Init(void) {
   * @retval None
   */
 void Inverter_Process(float torqueCommand) {
-//	if (torqueCommand < 250.0) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-//	}
-//	else if (torqueCommand < 500.0) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-//	}
-//	else if (torqueCommand < 750.0) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-//	}
-//	else if (torqueCommand <= 1000.0) {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-//	}
-//	else {
-//		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-//	}
+	if (torqueCommand < 250.0) {
+		HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+	}
+	else if (torqueCommand < 500.0) {
+		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+	}
+	else if (torqueCommand < 750.0) {
+		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+	}
+	else if (torqueCommand <= 1000.0) {
+		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+		HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+	}
+	else {
+		HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+		HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+	}
 	Inverter_TransmitCANMessage((uint16_t) torqueCommand, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE);
 }
 
