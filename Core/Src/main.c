@@ -159,24 +159,29 @@ int main(void)
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
+  // Activate Inverter (implement loop to check for activation notification)
+  Inverter_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
+	  // Pedals Collection
 	  ADC_APPSCollection(APPSData);
 	  bseRaw = ADC_BSECollection();
 
+	  // Filtering
 	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
 	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
 
-	  // Plausibility Functions called here
-
-     if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+	  // Plausibility Functions
+      if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
 	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
 
+	  // APPS averaging
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
 
+	  // Torque and Brakes Activation Percentage Calculation
 	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
@@ -186,21 +191,23 @@ int main(void)
 		  torqueCommand = 0;
 	  }
 
-     if (bseGradient < 0.0) { bseGradient = 0.0; }
-     if (bseGradient > 100.0) { bseGradient = 100.0; }
+	  // Clamps brakes values (redundant?)
+      if (bseGradient < 0.0) { bseGradient = 0.0; }
+      if (bseGradient > 100.0) { bseGradient = 100.0; }
 
-     // Brakes Activated = 0.0 torque, brake lights activated
-     if (bseGradient > bseThreshold) {
-   	  if (torqueCommand > 0) { implausibilityTriggered = 1; }
-        HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
-    	  torqueCommand = 0.0;
-      }
-      // Brakes !Activated = calculated torque, brake lights not activated
-      else {
-    	  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
-          if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
-          if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
-      }
+      // Brakes Activated = 0.0 torque, brake lights activated
+	  if (bseGradient > bseThreshold) {
+		  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
+		  if (torqueCommand > 500.0) { implausibilityTriggered = 1; }
+		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
+		  torqueCommand = 0.0;
+	  }
+	  // Brakes !Activated = calculated torque, brake lights not activated
+	  else {
+		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
+		  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
+		  if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
+	  }
       Inverter_Process(torqueCommand);
 
 	  HAL_Delay(10);

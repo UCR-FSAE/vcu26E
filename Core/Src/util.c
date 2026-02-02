@@ -23,12 +23,12 @@ float apps1Min = 		1.36; 		// 2v
 float apps1Max = 		2.97; 		// 3.8
 float apps2Min = 		1.53;
 float apps2Max = 		2.97;
-float bseMin = 			0.67; 	// 1v six seven
+float bseMin = 			0.67; 		// 1v six seven
 float bseMax = 			2.28; 		// 3.25
 char RTDActive = 		0; 			// bool for ready to drive
 char InverterReady = 	0;
 uint16_t delay = 		30;			// delay length in between loop executions
-float vScale =			5.0;
+float vScale =			3.3;
 
 
 // APPS ADC Collection
@@ -53,7 +53,7 @@ void ADC_APPSCollection(float *readings) {
 // BSE ADC Collection
 uint32_t ADC_BSECollection() {
 	HAL_ADC_Start(&hadc3);
-	if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
+	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
 		return ((float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * vScale);
 	}
 	else {
