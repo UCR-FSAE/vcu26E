@@ -11,11 +11,12 @@
 #include <main.h>
 
 extern ADC_HandleTypeDef hadc3;
+extern ADC_HandleTypeDef hadc1;
 
 
 // ADC Collection
 void ADC_APPSCollection(float *readings);
-uint32_t ADC_BSECollection();
+float ADC_BSECollection();
 
 // Torque Command Calculation Functions
 float Drive_CalculateTorqueCommand(float appsRaw);

@@ -23,7 +23,7 @@ float apps1Min = 		1.36; 		// 2v
 float apps1Max = 		2.97; 		// 3.8
 float apps2Min = 		1.53;
 float apps2Max = 		2.97;
-float bseMin = 			0.67; 		// 1v six seven
+float bseMin = 			0.67; 	// 1v six seven
 float bseMax = 			2.28; 		// 3.25
 char RTDActive = 		0; 			// bool for ready to drive
 char InverterReady = 	0;
@@ -51,10 +51,10 @@ void ADC_APPSCollection(float *readings) {
 }
 
 // BSE ADC Collection
-uint32_t ADC_BSECollection() {
-	HAL_ADC_Start(&hadc3);
-	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
-		return ((float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * vScale);
+float ADC_BSECollection() {
+	HAL_ADC_Start(&hadc1);
+	if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+		return ((float) (HAL_ADC_GetValue(&hadc1) / (float) (4095.0)) * vScale);
 	}
 	else {
 		return 0b1111111111111111111111111111111;
@@ -68,7 +68,7 @@ float Drive_CalculateTorqueCommand(float appsRaw) {
 
 // brakes percentage calculations
 float Drive_CalculateBrakesActivation(float bseRaw) {
-	return (44.44 * (bseRaw-1));
+	return (62.112 * (bseRaw) -41.615);
 }
 
 // starts timing if an implausibility occurs

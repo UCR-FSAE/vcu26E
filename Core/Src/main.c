@@ -91,8 +91,8 @@ char InverterActive = 0;
 
 float bseThreshold = 	40.0; // activation thresholds for the brakes
 
-uint32_t appsRaw;
-uint32_t bseRaw;
+float appsRaw;
+float bseRaw;
 float appsFiltered;
 float appsFiltered1;
 float appsFiltered2;
@@ -190,10 +190,6 @@ int main(void)
 		  Inverter_DisableInverter();
 		  torqueCommand = 0;
 	  }
-
-	  // Clamps brakes values (redundant?)
-      if (bseGradient < 0.0) { bseGradient = 0.0; }
-      if (bseGradient > 100.0) { bseGradient = 100.0; }
 
       // Brakes Activated = 0.0 torque, brake lights activated
 	  if (bseGradient > bseThreshold) {
