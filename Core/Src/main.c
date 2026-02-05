@@ -73,13 +73,6 @@ UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-/* USER CODE BEGIN PV */
-//typedef struct {
-//	uint32_t curTick;
-//	uint32_t duration;
-//	uint8_t hasStarted;
-//} Timer;
-
 Timer appsTimer = {0};
 Timer bseTimer = {0};
 
@@ -102,8 +95,6 @@ float bseGradient;
 float APPSData[2];
 uint32_t counter = 0;
 
-//typedef enum {INIT, ACTIVE, IMPLAUSIBLE} states;
-//static states CurrentState = INIT;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -186,7 +177,6 @@ int main(void)
 		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
 		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
 	  }
-
 
 	  // APPS averaging
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;

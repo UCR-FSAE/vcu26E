@@ -57,7 +57,7 @@ float ADC_BSECollection() {
 		return ((float) (HAL_ADC_GetValue(&hadc1) / (float) (4095.0)) * vScale);
 	}
 	else {
-		return 0b1111111111111111111111111111111;
+		return 4095.0;
 	}
 }
 
