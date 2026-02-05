@@ -100,6 +100,7 @@ float torqueCommand;
 float bseGradient;
 
 float APPSData[2];
+uint32_t counter = 0;
 
 //typedef enum {INIT, ACTIVE, IMPLAUSIBLE} states;
 //static states CurrentState = INIT;
@@ -166,6 +167,8 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
+	  counter++;
+
 	  // Pedals Collection
 	  ADC_APPSCollection(APPSData);
 	  bseRaw = ADC_BSECollection();
@@ -174,15 +177,23 @@ int main(void)
 	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
 	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
 
-	  // Plausibility Functions
-      if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
-	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
+	  // Calculate APPS activation percentage
+	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
+	  appsFiltered2 = APPS_CalculateActivationPercentage(appsFiltered2, 2);
+
+	  if (counter > 100) {
+		  // Plausibility Functions
+		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
+	  }
+
 
 	  // APPS averaging
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
 
 	  // Torque and Brakes Activation Percentage Calculation
-	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
+//	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
+	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
 	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs

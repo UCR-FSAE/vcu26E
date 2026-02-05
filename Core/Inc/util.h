@@ -18,6 +18,9 @@ extern ADC_HandleTypeDef hadc1;
 void ADC_APPSCollection(float *readings);
 float ADC_BSECollection();
 
+// ADC Percentage Calculation Functions
+float APPS_CalculateActivationPercentage(float adc, char channel);
+
 // Torque Command Calculation Functions
 float Drive_CalculateTorqueCommand(float appsRaw);
 float Drive_CalculateBrakesActivation(float bseRaw);
