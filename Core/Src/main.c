@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -74,26 +74,36 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
+//typedef struct {
+//	uint32_t curTick;
+//	uint32_t duration;
+//	uint8_t hasStarted;
+//} Timer;
 
-float appsRaw;
-float bseRaw;
-float appsGradient;
-float bseGradient;
+Timer appsTimer = {0};
+Timer bseTimer = {0};
 
-// configuration and calibration variables
-float appsMin = 		2.0; // 2v
-float appsMax = 		3.95; // 3.8
-float bseMin = 			1.58933; // 1v
-float bseMax = 			3.25; // 3.25
-float bseThreshold = 	40.0; // activation thresholds for the brakes
-char RTDActive = 		0; // bool for ready to drive
-float torqueCommand = 	0.0; // torque command which will be sent to the inverter
-char InverterReady = 	0;
-uint16_t delay = 		30;	// delay length in between loop executions
+char implausibilityTriggered = 0;
 
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
+char InverterActive = 0;
 
+float bseThreshold = 	40.0; // activation thresholds for the brakes
+
+float appsRaw;
+float bseRaw;
+float appsFiltered;
+float appsFiltered1;
+float appsFiltered2;
+float torqueCommand;
+float bseGradient;
+
+float APPSData[2];
+uint32_t counter = 0;
+
+//typedef enum {INIT, ACTIVE, IMPLAUSIBLE} states;
+//static states CurrentState = INIT;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -112,8 +122,6 @@ static void MX_ADC3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-CAN_RxHeaderTypeDef   RxHeader;
-uint8_t               RxData[8];
 /* USER CODE END 0 */
 
 /**
@@ -124,7 +132,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -140,7 +147,6 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -154,120 +160,65 @@ int main(void)
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
-
+  // Activate Inverter (implement loop to check for activation notification)
   Inverter_Init();
-	for (int i = 0; i < 2; i++) {
-		  HAL_GPIO_TogglePin(GPIOB, LD1_Pin);
-		  HAL_GPIO_TogglePin(GPIOB, LD2_Pin);
-		  HAL_GPIO_TogglePin(GPIOB, LD3_Pin);
-		  HAL_Delay(1000);
-	}
-
-//  while (InverterReady == 0) {
-//		Inverter_Init();
-//	    // Check if there are messages in FIFO0
-//	    if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0)
-//	    {
-//		  HAL_GPIO_TogglePin(GPIOB, LD1_Pin);
-//
-//
-//	        if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
-//	        {
-//	        	if(RxHeader.StdId == 0x0AA) {
-//	        		if (RxData[6] & 0x01) {
-//	    	        	InverterReady = 1;
-//	    				// toggles for 1 second on activation of the inverter
-//	    				for (int i = 0; i < 2; i++) {
-//	    				  HAL_GPIO_TogglePin(GPIOB, LD1_Pin);
-//	    				  HAL_GPIO_TogglePin(GPIOB, LD2_Pin);
-//	    				  HAL_GPIO_TogglePin(GPIOB, LD3_Pin);
-//	    				  HAL_Delay(1000);
-//	    				}
-//	        		}
-//
-//				}
-//
-//	        }
-//	    }
-//	    HAL_Delay(10);  // Optional: add small delay to reduce CPU usage
-//  }
-
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	while (1)
-	  {
-	      static float appsPrev = 0.0f;          // previous filtered voltage
-	      static float appsSlewVPerS = 1.5f;     // max allowed V/sec change (tune as needed)
-	      static float appsRaw0 = 0.0f, appsRaw1 = 0.0f, appsRaw2 = 0.0f; // rolling raw samples
+  while (1) {
+	  counter++;
 
-	      HAL_ADC_Start(&hadc3);
-	      if (HAL_ADC_PollForConversion(&hadc3, 1) == HAL_OK) {
-	          appsRaw = (((float) (HAL_ADC_GetValue(&hadc3)) / (float) (4095.0)) * 5.0);
-	      }
-	      HAL_ADC_Stop(&hadc3);
+	  // Pedals Collection
+	  ADC_APPSCollection(APPSData);
+	  bseRaw = ADC_BSECollection();
 
-	      // simple median-of-3 to reject single-sample spikes
-	      // push new sample into history
-	      appsRaw0 = appsRaw1;
-	      appsRaw1 = appsRaw2;
-	      appsRaw2 = appsRaw;
-	      // median-of-3 on copies so history isn't mutated
-	      float a = appsRaw0, b = appsRaw1, c = appsRaw2;
-	      if (a > b) { float t = a; a = b; b = t; }
-	      if (b > c) { float t = b; b = c; c = t; }
-	      if (a > b) { float t = a; a = b; b = t; }
-	      float appsMed = b;
+	  // Filtering
+	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
+	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
 
-	      const float appsDt = 0.001f * delay; // delay is in ms
-	      float appsDv = appsMed - appsPrev;
-	      float appsMaxDv = appsSlewVPerS * appsDt;
-	      if (appsDv >  appsMaxDv) appsMed = appsPrev + appsMaxDv;
-	      if (appsDv < -appsMaxDv) appsMed = appsPrev - appsMaxDv;
-	      appsPrev = appsMed;
+	  // Calculate APPS activation percentage
+	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
+	  appsFiltered2 = APPS_CalculateActivationPercentage(appsFiltered2, 2);
 
-	      // use filtered value going forward
-	      appsRaw = appsMed;
-
-	      HAL_ADC_Start(&hadc1);
-	      if (HAL_ADC_PollForConversion(&hadc1, 1) == HAL_OK) {
-	          bseRaw = (((float) (HAL_ADC_GetValue(&hadc1)) / (float) (4095.0)) * 5.0);
-	      }
-	      HAL_ADC_Stop(&hadc1);
-
-	      bseGradient = (44.44 * (bseRaw-1));
-	      torqueCommand = 2*(513.924 * (appsRaw) - 1080); // 0-1000
-
-	      // brake light logic
-	      if (bseGradient > bseThreshold) { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, SET); }
-	      else { HAL_GPIO_WritePin(GPIOA, Brake_Light_Active_Pin, RESET); }
-
-//	      if (RTDActive == 0) {
-//	          if (bseGradient > bseThreshold && HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
-//	              uint32_t startTick = HAL_GetTick();
-//	              HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, SET);
-//	              while(HAL_GetTick() - startTick < 1500) {}
-//	              HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, RESET);
-//	              RTDActive = 1;
-//	          }
-//	      }
-//	      else {
-//	          if (!HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) { RTDActive = 0; }
-	          if (bseGradient < 0.0) { bseGradient = 0.0; }
-	          if (bseGradient > 100.0) { bseGradient = 100.0; }
-	          if (bseGradient > bseThreshold) { torqueCommand = 0.0; }
-	          else {
-	              if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
-	              if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
-	          }
-	          Inverter_Process(torqueCommand);
-//	      }
-
-	        // delay to optimize inverter performance
-	      HAL_Delay(delay);
+	  if (counter > 100) {
+		  // Plausibility Functions
+		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
 	  }
+
+
+	  // APPS averaging
+	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
+
+	  // Torque and Brakes Activation Percentage Calculation
+//	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
+	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
+	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
+
+	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
+	  if (implausibilityTriggered) {
+		  Inverter_DisableInverter();
+		  torqueCommand = 0;
+	  }
+
+      // Brakes Activated = 0.0 torque, brake lights activated
+	  if (bseGradient > bseThreshold) {
+		  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
+		  if (torqueCommand > 500.0) { implausibilityTriggered = 1; }
+		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
+		  torqueCommand = 0.0;
+	  }
+	  // Brakes !Activated = calculated torque, brake lights not activated
+	  else {
+		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
+		  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
+		  if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
+	  }
+      Inverter_Process(torqueCommand);
+
+	  HAL_Delay(10);
+  }
 
     /* USER CODE END WHILE */
 
@@ -399,13 +350,13 @@ static void MX_ADC3_Init(void)
   hadc3.Instance = ADC3;
   hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc3.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc3.Init.ContinuousConvMode = DISABLE;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
   hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc3.Init.NbrOfConversion = 1;
+  hadc3.Init.NbrOfConversion = 2;
   hadc3.Init.DMAContinuousRequests = DISABLE;
   hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc3) != HAL_OK)
@@ -415,9 +366,18 @@ static void MX_ADC3_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Channel = ADC_CHANNEL_5;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
   {
     Error_Handler();

@@ -11,7 +11,10 @@
 #include "main.h"
 
 
+// ADC Collection Functions
 
+
+// Inverter functions.
 void Inverter_Init(void);
 void Inverter_Process(float torqueCommand);
 void Inverter_EnableInverter(void);

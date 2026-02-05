@@ -5,11 +5,9 @@
  *      Author: Justin Im
  */
 
-#include "inverter.h"
+#include <inverter.h>
 
 extern CAN_HandleTypeDef hcan1;
-static uint16_t torqueCommand = 0;
-static uint16_t prevTorqueCommand = 0;
 
 void Inverter_Init(void) {
 	  Inverter_DisableInverter();
@@ -140,19 +138,19 @@ void Inverter_EnableInverter(void)
   txData[6] = 0;
   txData[7] = 0;
 
-//  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0) {
-//    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX0);
-//    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX1);
-//    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX2);
-//  }
-//
-//  status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
-//
-//  if (status != HAL_OK) {
-//    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) {
-//      Error_Handler();
-//    }
-//  }
+  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0) {
+    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX0);
+    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX1);
+    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX2);
+  }
+
+  status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
+
+  if (status != HAL_OK) {
+    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) {
+      Error_Handler();
+    }
+  }
 }
 
 void Inverter_DisableInverter(void)
