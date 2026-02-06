@@ -80,7 +80,7 @@ char implausibilityTriggered = 0;
 
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
-char InverterActive = 0;
+volatile bool InverterActive = false;
 
 float bseThreshold = 	40.0; // activation thresholds for the brakes
 
@@ -152,7 +152,20 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
   // Activate Inverter (implement loop to check for activation notification)
-  Inverter_Init();
+  while(!InverterActive) {
+    Inverter_Init();
+    uint32_t start = HAL_GetTick();
+    while ((HAL_GetTick() - start) < 500) { // wait 500ms for response
+        if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0){
+            if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK){
+                if (RxHeader.StdId == Inverter_INVERTER_STATUS_ID){
+                    InverterActive = true;
+                    break;
+                }
+            }
+        }
+    }
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
