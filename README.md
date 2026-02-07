@@ -18,7 +18,4 @@ The Torque Request is calculated using a linear equation based on the maximum an
 BSE and APPS plausibility is checked in consideration to the measured maximum and minimum voltages of the APPS and the BSE.
 
 To-Do:
-- APPS Plausibility
-- BSE Plausibility
-- APPS + BSE Plausibility
 - RTD with Tractive System Active

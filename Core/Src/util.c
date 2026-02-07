@@ -4,7 +4,7 @@
  *  Created on: Jan 19, 2026
  *      Author: imjus
  */
-
+#include <stdlib.h>
 #include <util.h>
 
 // APPS Slew Filter Values for apps 1
@@ -19,12 +19,12 @@ static float appsRaw02 = 0.0f, appsRaw12 = 0.0f, appsRaw22 = 0.0f; 	// rolling r
 
 
 // configuration and calibration variables
-float apps1Min = 		1.36; 		// 2v
-float apps1Max = 		2.97; 		// 3.8
+float apps1Min = 		1.34; 		// 1.36
+float apps1Max = 		2.97; 		// 2.97
 float apps2Min = 		1.53;
 float apps2Max = 		2.97;
-float bseMin = 			0.67; 	// 1v six seven
-float bseMax = 			2.28; 		// 3.25
+float bseMin = 			0.65;
+float bseMax = 			2.28;
 char RTDActive = 		0; 			// bool for ready to drive
 char InverterReady = 	0;
 uint16_t delay = 		30;			// delay length in between loop executions
@@ -57,9 +57,20 @@ float ADC_BSECollection() {
 		return ((float) (HAL_ADC_GetValue(&hadc1) / (float) (4095.0)) * vScale);
 	}
 	else {
-		return 0b1111111111111111111111111111111;
+		return 4095.0;
 	}
 }
+
+// APPS percentage calculations
+float APPS_CalculateActivationPercentage(float adc, char channel) {
+	if (channel == 1) {
+		return 70.2865539932 * (adc - 1.54725277);
+	}
+	else {
+		return 62.0920235829 * (adc - 1.35948718);
+	}
+}
+
 
 // torque calculations
 float Drive_CalculateTorqueCommand(float appsRaw) {
@@ -68,16 +79,16 @@ float Drive_CalculateTorqueCommand(float appsRaw) {
 
 // brakes percentage calculations
 float Drive_CalculateBrakesActivation(float bseRaw) {
-	return (62.112 * (bseRaw) -41.615);
+	return (60.9756 * (bseRaw - 0.64));
 }
 
 // starts timing if an implausibility occurs
 char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2) {
 	t->hasFailed = 0;
 
-	if (appsFiltered1 > apps1Max || appsFiltered1 < apps1Min) { t->hasFailed = 1; }
-	if (appsFiltered2 > apps2Max || appsFiltered2 < apps2Min) { t->hasFailed = 1; }
-	if ((appsFiltered1-appsFiltered2) / vScale > 0.1) { t->hasFailed = 1; }
+	if (appsFiltered1 > 100.0 || appsFiltered1 < 0.0) { t->hasFailed = 1; }
+	if (appsFiltered2 > 100.0 || appsFiltered2 < 0.0) { t->hasFailed = 1; }
+	if (abs(appsFiltered1-appsFiltered2) > 15.0) { t->hasFailed = 1; }
 
 	if (t->hasFailed) {
 		timerStart(t, 100);
