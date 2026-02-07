@@ -153,6 +153,10 @@ int main(void)
   HAL_CAN_Start(&hcan1);
   // Activate Inverter (implement loop to check for activation notification)
   Inverter_Init();
+
+  // Wait for RTD checks
+  while (!RTDCheck(bseGradient, bseThreshold)) {}
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
