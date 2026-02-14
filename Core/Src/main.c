@@ -155,8 +155,7 @@ int main(void)
   Inverter_Init();
 
   // Wait for RTD checks
-  while (!RTDCheck(bseGradient, bseThreshold)) {}
-
+  while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -186,7 +185,6 @@ int main(void)
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
 
 	  // Torque and Brakes Activation Percentage Calculation
-//	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
 	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
