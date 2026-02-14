@@ -10,7 +10,7 @@
 
 #include "main.h"
 
-char RTDCheck(float bseGradient, float bseThreshold);
+char RTDCheck(float bseThreshold);
 
 
 #endif /* INC_RTD_H_ */

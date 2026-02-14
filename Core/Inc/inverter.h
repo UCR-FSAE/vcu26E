@@ -23,12 +23,13 @@ void Inverter_ClearInverterFaults(void);
 void Inverter_ProcessAnalogInputs(void);
 void Inverter_TransmitCANMessage(uint16_t torque, uint8_t direction, uint8_t inverterEnable);
 
-#define Inverter_INVERTER_COMMAND_ID 0x0C0
-#define Inverter_INVERTER_CLEAR_ID 0x0C1
+#define Inverter_INVERTER_COMMAND_ID 	0x0C0
+#define Inverter_INVERTER_CLEAR_ID 		0x0C1
+#define Inverter_INVERTER_STATUS_ID 	0x0AA
 
-#define Inverter_DIRECTION_FORWARD 0x00
-#define Inverter_DIRECTION_REVERSE 0x01
-#define Inverter_INVERTER_ENABLE  0x01
-#define Inverter_INVERTER_DISABLE 0x00
+#define Inverter_DIRECTION_FORWARD 		0x00
+#define Inverter_DIRECTION_REVERSE 		0x01
+#define Inverter_INVERTER_ENABLE  		0x01
+#define Inverter_INVERTER_DISABLE 		0x00
 
 #endif /* INC_INVERTER_H_ */

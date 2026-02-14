@@ -80,7 +80,7 @@ char implausibilityTriggered = 0;
 
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
-char InverterActive = 0;
+volatile bool InverterActive = false;
 
 float bseThreshold = 	40.0; // activation thresholds for the brakes
 
@@ -151,8 +151,23 @@ int main(void)
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
-  // Activate Inverter (implement loop to check for activation notification)
-  Inverter_Init();
+  // Activate Inverter
+
+  while(!InverterActive) {
+	 Inverter_Init();
+	 uint32_t start = HAL_GetTick();
+	 while ((HAL_GetTick() - start) < 500) { // wait 500ms for response
+		if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
+			if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK) {
+				if (RxHeader.StdId == Inverter_INVERTER_STATUS_ID && (RxData[6] & 0x01) == 0x01) { InverterActive = true; }
+			}
+		}
+	 }
+  }
+
+
+  // Wait for RTD checks
+  while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -182,7 +197,6 @@ int main(void)
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
 
 	  // Torque and Brakes Activation Percentage Calculation
-//	  torqueCommand = Drive_CalculateTorqueCommand(appsFiltered);
 	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
