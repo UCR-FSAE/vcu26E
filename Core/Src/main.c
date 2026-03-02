@@ -62,6 +62,8 @@ ETH_TxPacketConfig TxConfig;
 
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc3;
+DMA_HandleTypeDef hdma_adc1;
+DMA_HandleTypeDef hdma_adc3;
 
 CAN_HandleTypeDef hcan1;
 
@@ -73,6 +75,7 @@ UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
+/* USER CODE BEGIN PV */
 Timer appsTimer = {0};
 Timer bseTimer = {0};
 
@@ -94,12 +97,15 @@ float bseGradient;
 
 float APPSData[2];
 uint32_t counter = 0;
-
+float vScale = 3.3f;
+volatile uint16_t bse_raw_buffer[1];
+volatile uint16_t apps_raw_buffer[2];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_ETH_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
@@ -142,6 +148,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ETH_Init();
   MX_I2C1_Init();
   MX_USART3_UART_Init();
@@ -150,6 +157,8 @@ int main(void)
   MX_CAN1_Init();
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)bse_raw_buffer, 1);
+  HAL_ADC_Start_DMA(&hadc3, (uint32_t*)apps_raw_buffer, 2);
   HAL_CAN_Start(&hcan1);
   // Activate Inverter
 
@@ -176,12 +185,17 @@ int main(void)
 	  counter++;
 
 	  // Pedals Collection
-	  ADC_APPSCollection(APPSData);
-	  bseRaw = ADC_BSECollection();
+	  uint16_t temp_apps1 = apps_raw_buffer[0];
+	  uint16_t temp_apps2 = apps_raw_buffer[1];
+	  uint16_t temp_bse   = bse_raw_buffer[0];
+
+	  float APPSData1 = ((float)temp_apps1 / 4095.0f) * vScale;
+	  float APPSData2 = ((float)temp_apps2 / 4095.0f) * vScale;
+	  bseRaw   		  = ((float)temp_bse   / 4095.0f) * vScale;
 
 	  // Filtering
-	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
-	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
+	  appsFiltered1 = APPS_SlewFilter(APPSData1, 1);
+	  appsFiltered2 = APPS_SlewFilter(APPSData2, 2);
 
 	  // Calculate APPS activation percentage
 	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
@@ -302,14 +316,14 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -355,13 +369,13 @@ static void MX_ADC3_Init(void)
   hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc3.Init.Resolution = ADC_RESOLUTION_12B;
   hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
-  hadc3.Init.ContinuousConvMode = DISABLE;
+  hadc3.Init.ContinuousConvMode = ENABLE;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
   hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc3.Init.NbrOfConversion = 2;
-  hadc3.Init.DMAContinuousRequests = DISABLE;
+  hadc3.Init.DMAContinuousRequests = ENABLE;
   hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc3) != HAL_OK)
   {
@@ -608,6 +622,25 @@ static void MX_USB_OTG_FS_PCD_Init(void)
   /* USER CODE BEGIN USB_OTG_FS_Init 2 */
 
   /* USER CODE END USB_OTG_FS_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
 
 }
 

@@ -28,7 +28,7 @@ float bseMax = 			2.28;
 char RTDActive = 		0; 			// bool for ready to drive
 char InverterReady = 	0;
 uint16_t delay = 		30;			// delay length in between loop executions
-float vScale =			3.3;
+extern float vScale;
 
 
 // APPS ADC Collection
