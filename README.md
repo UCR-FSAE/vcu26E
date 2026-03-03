@@ -17,5 +17,5 @@ Utilizes a simple while loop for reliability. The loop is as follows:
 The Torque Request is calculated using a linear equation based on the maximum and minimum voltages of the APPS. 
 BSE and APPS plausibility is checked in consideration to the measured maximum and minimum voltages of the APPS and the BSE.
 
-To-Do:
-- RTD with Tractive System Active
+Additional Documentation, courtesy of Athan Hoang and Ian Perez
+https://docs.google.com/document/d/1J8RG2uIVCY81n3Bgp9mrRRUokbDgap_q0SCUwUOo1os/edit?usp=drivesdk
