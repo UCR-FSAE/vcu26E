@@ -12,12 +12,8 @@ extern CAN_HandleTypeDef hcan1;
 void Inverter_Init(void) {
 	  Inverter_DisableInverter();
 	  HAL_Delay(500);
-//	  Inverter_ClearInverterFaults();
-//	  HAL_Delay(500);
 	  Inverter_EnableInverter();
 	  HAL_Delay(500);
-
-	  // read can messages for inverter awake and then toggle a status led
 }
 
 /**
@@ -98,10 +94,8 @@ void Inverter_TransmitCANMessage(uint16_t torque, uint8_t direction, uint8_t inv
 	status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
 
 	if (status != HAL_OK) {
-//		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 	    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) { Error_Handler(); }
 	}
-//	else { HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET); }
   }
 }
 
@@ -156,47 +150,4 @@ void Inverter_EnableInverter(void)
 void Inverter_DisableInverter(void)
 {
   Inverter_TransmitCANMessage(0, 0, Inverter_INVERTER_DISABLE);
-}
-
-
-void Inverter_ClearInverterFaults(void)
-{
-	  CAN_TxHeaderTypeDef txHeader;
-	  uint8_t txData[8];
-	  uint32_t txMailbox;
-	  HAL_StatusTypeDef status;
-
-	  /* Configure transmission */
-	  txHeader.StdId = Inverter_INVERTER_CLEAR_ID;
-	  txHeader.ExtId = 0;
-	  txHeader.IDE = CAN_ID_STD;
-	  txHeader.RTR = CAN_RTR_DATA;
-	  txHeader.DLC = 8;
-	  txHeader.TransmitGlobalTime = DISABLE;
-
-	  txData[0] = (uint8_t) 0x14; // command id for clearing fault
-	  txData[1] = 0;
-
-	  txData[2] = 1; // command to clear faults
-	  txData[3] = 0;
-
-	  txData[4] = 0;
-	  txData[5] = 0;
-
-	  txData[6] = 0;
-	  txData[7] = 0;
-
-	  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0) {
-	    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX0);
-	    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX1);
-	    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX2);
-	  }
-
-	  status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
-
-	  if (status != HAL_OK) {
-	    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) {
-	      Error_Handler();
-	    }
-	  }
 }
