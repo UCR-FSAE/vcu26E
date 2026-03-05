@@ -82,38 +82,53 @@ float Drive_CalculateBrakesActivation(float bseRaw) {
 	return (60.9756 * (bseRaw - 0.64));
 }
 
-// starts timing if an implausibility occurs
+// APPs plausibility code
 char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2) {
 	t->hasFailed = 0;
 
+	// sets failbit of timer object to true if:
+	// apps signals exceed min or max values
+	// gradient of the 2 signals exceeds 15%
 	if (appsFiltered1 > 110.0 || appsFiltered1 < -10.0) { t->hasFailed = 1; }
 	if (appsFiltered2 > 110.0 || appsFiltered2 < -10.0) { t->hasFailed = 1; }
 	if (abs(appsFiltered1-appsFiltered2) > 30.0) { t->hasFailed = 1; }
 
+	// starts timer if failbit is true
 	if (t->hasFailed) {
 		timerStart(t, 100);
 	} else {
 		timerReset(t);
 	}
 
+	// function returns true if timer exceeds 100ms
 	if (timerExpires(t)) { return 1; }
 	return 0;
 }
 
+// BSE plausibility code
+// starts timer if bse value is out of bound.
+// returns true if error persists for more than 100ms, else timer resets and returns false.
 char BSE_ImplausibilityCheck(Timer* t, float bseRaw) {
 	t->hasFailed = 0;
+
+	// sets failbit of timer object to true if BSE signal exceeds max or min value
 	if (bseRaw < bseMin || bseRaw > bseMax){ t->hasFailed = 1; }
 
+	// starts timer if failbit is true
 	if (t->hasFailed) {
 		timerStart(t, 100);
 	} else {
 		timerReset(t);
 	}
 
+	// function returns true if timer exceeds 100ms
 	if (timerExpires(t)) { return 1; }
 	return 0;
 }
 
+// Starts timing implausibility if timer hasnt already started
+// Sets duration threshold
+// starting timer for implausibility checks
 void timerStart(Timer *t, uint32_t duration) {
 	if (!t->hasStarted) {
 		t->curTick = HAL_GetTick();
@@ -122,12 +137,16 @@ void timerStart(Timer *t, uint32_t duration) {
 	}
 }
 
+// Resets timer
+// reset timer for implausibility checks
 void timerReset(Timer *t) {
 	t->duration = 0;
 	t->hasStarted = 0;
 	t->hasFailed = 0;
 }
 
+// Determines if timer has exceeded threshold given by timerStart()
+// checks for timer duration. returns true if timer reaches duration. else return false
 char timerExpires(Timer *t) {
 	if (t->hasStarted) {
 		if ((HAL_GetTick() - t->curTick) >= t->duration) { return 1; }
