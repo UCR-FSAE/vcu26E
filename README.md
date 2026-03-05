@@ -3,7 +3,7 @@
 UCR FSAE Highlander Racing's Vehicle Control Unit. Developed and tested on 24E to be applied to 26E.  
 Utilizes a simple while loop for reliability. The loop is as follows:
 - Initialize
-- Prompter Inverter for lockout and check readiness
+- Prompt Inverter for lockout and check readiness
 - Check Ready to Drive
   - Brakes Active
   - Driver Action
