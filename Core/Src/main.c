@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdbool.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,10 +78,8 @@ Timer appsTimer = {0};
 Timer bseTimer = {0};
 
 char implausibilityTriggered = 0;
-
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
-volatile bool InverterActive = false;
 
 float bseThreshold = 	40.0; // activation thresholds for the brakes
 
@@ -152,20 +150,8 @@ int main(void)
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
-  // Activate Inverter
-
-  while(!InverterActive) {
-	 Inverter_Init();
-	 uint32_t start = HAL_GetTick();
-	 while ((HAL_GetTick() - start) < 500) { // wait 500ms for response
-		if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
-			if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK) {
-				if (RxHeader.StdId == Inverter_INVERTER_STATUS_ID && (RxData[6] & 0x01) == 0x01) { InverterActive = true; }
-			}
-		}
-	 }
-  }
-
+  // Activate Inverter and wait for inverter response
+  while(!InverterCheck()) {}
 
   // Wait for RTD checks
   while (!RTDCheck(bseThreshold)) {}
@@ -427,19 +413,21 @@ static void MX_CAN1_Init(void)
   /* USER CODE BEGIN CAN1_Init 2 */
 
 
-//  	CAN_FilterTypeDef canfilterconfig;
-//
-//    canfilterconfig.FilterMode = CAN_FILTERMODE_IDLIST;
-//    canfilterconfig.FilterScale = CAN_FILTERSCALE_16BIT;
-//    canfilterconfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-//    canfilterconfig.FilterActivation = ENABLE;
-//
-//    // inverter status can messages
-//    canfilterconfig.FilterBank = 0;
-//    canfilterconfig.FilterIdHigh = 0x0AA << 5;
-//    canfilterconfig.FilterIdLow = 0x000;
-//
-//    HAL_CAN_ConfigFilter(&hcan1, &canfilterconfig);
+  	CAN_FilterTypeDef canfilterconfig;
+
+    canfilterconfig.FilterMode = CAN_FILTERMODE_IDLIST;
+    canfilterconfig.FilterScale = CAN_FILTERSCALE_16BIT;
+    canfilterconfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    canfilterconfig.FilterActivation = ENABLE;
+
+    // inverter status can messages
+    canfilterconfig.FilterBank = 0;
+    canfilterconfig.FilterIdHigh = 0x0AA << 5;
+    canfilterconfig.FilterIdLow = 0x000;
+    canfilterconfig.FilterMaskIdHigh = 0xFFFF;
+    canfilterconfig.FilterMaskIdLow = 0xFFFF;
+
+    HAL_CAN_ConfigFilter(&hcan1, &canfilterconfig);
 
   /* USER CODE END CAN1_Init 2 */
 

@@ -34,7 +34,7 @@ extern "C" {
 #include <inverter.h>		// Inverter and ADC collection functions
 #include <util.h>		// Math helper functions
 #include "rtd.h"
-
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
