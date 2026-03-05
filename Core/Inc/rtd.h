@@ -10,6 +10,7 @@
 
 #include "main.h"
 
+char InverterCheck();
 char RTDCheck(float bseThreshold);
 
 

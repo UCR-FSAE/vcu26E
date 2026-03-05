@@ -7,6 +7,22 @@
 
 #include "rtd.h"
 
+extern CAN_HandleTypeDef hcan1;
+extern CAN_RxHeaderTypeDef RxHeader;
+extern uint8_t RxData[8];
+
+char InverterCheck() {
+	Inverter_Init();
+	if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
+		if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK) {
+			if (RxHeader.StdId == Inverter_INVERTER_STATUS_ID && (RxData[6] & 0x01) == 0x01) { return 1; }
+		}
+	 }
+
+	return 0;
+}
+
+
 char RTDCheck(float bseThreshold) {
 	float bseGradient = Drive_CalculateBrakesActivation(ADC_BSECollection());
 

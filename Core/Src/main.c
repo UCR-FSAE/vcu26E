@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdbool.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,10 +78,8 @@ Timer appsTimer = {0};
 Timer bseTimer = {0};
 
 char implausibilityTriggered = 0;
-
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
-volatile bool InverterActive = false;
 
 float bseThreshold = 	40.0; // activation thresholds for the brakes
 
@@ -152,23 +150,8 @@ int main(void)
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
-  // Activate Inverter
-
-  while(!InverterActive) {
-	 Inverter_Init();
-		if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
-			if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK) {
-				if (RxHeader.StdId == Inverter_INVERTER_STATUS_ID && (RxData[6] & 0x01) == 0x01) {
-					InverterActive = true;
-					HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-					HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-					HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-					HAL_Delay(5000);
-				}
-			}
-	 }
-  }
-
+  // Activate Inverter and wait for inverter response
+  while(!InverterCheck()) {}
 
   // Wait for RTD checks
   while (!RTDCheck(bseThreshold)) {}
