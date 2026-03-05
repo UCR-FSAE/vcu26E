@@ -106,6 +106,8 @@ char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2
 }
 
 // BSE plausibility code
+// starts timer if bse value is out of bound.
+// returns true if error persists for more than 100ms, else timer resets and returns false.
 char BSE_ImplausibilityCheck(Timer* t, float bseRaw) {
 	t->hasFailed = 0;
 
@@ -126,6 +128,7 @@ char BSE_ImplausibilityCheck(Timer* t, float bseRaw) {
 
 // Starts timing implausibility if timer hasnt already started
 // Sets duration threshold
+// starting timer for implausibility checks
 void timerStart(Timer *t, uint32_t duration) {
 	if (!t->hasStarted) {
 		t->curTick = HAL_GetTick();
@@ -135,6 +138,7 @@ void timerStart(Timer *t, uint32_t duration) {
 }
 
 // Resets timer
+// reset timer for implausibility checks
 void timerReset(Timer *t) {
 	t->duration = 0;
 	t->hasStarted = 0;
@@ -142,6 +146,7 @@ void timerReset(Timer *t) {
 }
 
 // Determines if timer has exceeded threshold given by timerStart()
+// checks for timer duration. returns true if timer reaches duration. else return false
 char timerExpires(Timer *t) {
 	if (t->hasStarted) {
 		if ((HAL_GetTick() - t->curTick) >= t->duration) { return 1; }
