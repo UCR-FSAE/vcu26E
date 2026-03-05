@@ -156,13 +156,16 @@ int main(void)
 
   while(!InverterActive) {
 	 Inverter_Init();
-	 uint32_t start = HAL_GetTick();
-	 while ((HAL_GetTick() - start) < 500) { // wait 500ms for response
 		if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
 			if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK) {
-				if (RxHeader.StdId == Inverter_INVERTER_STATUS_ID && (RxData[6] & 0x01) == 0x01) { InverterActive = true; }
+				if (RxHeader.StdId == Inverter_INVERTER_STATUS_ID && (RxData[6] & 0x01) == 0x01) {
+					InverterActive = true;
+					HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+					HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+					HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+					HAL_Delay(5000);
+				}
 			}
-		}
 	 }
   }
 
@@ -427,19 +430,21 @@ static void MX_CAN1_Init(void)
   /* USER CODE BEGIN CAN1_Init 2 */
 
 
-//  	CAN_FilterTypeDef canfilterconfig;
-//
-//    canfilterconfig.FilterMode = CAN_FILTERMODE_IDLIST;
-//    canfilterconfig.FilterScale = CAN_FILTERSCALE_16BIT;
-//    canfilterconfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-//    canfilterconfig.FilterActivation = ENABLE;
-//
-//    // inverter status can messages
-//    canfilterconfig.FilterBank = 0;
-//    canfilterconfig.FilterIdHigh = 0x0AA << 5;
-//    canfilterconfig.FilterIdLow = 0x000;
-//
-//    HAL_CAN_ConfigFilter(&hcan1, &canfilterconfig);
+  	CAN_FilterTypeDef canfilterconfig;
+
+    canfilterconfig.FilterMode = CAN_FILTERMODE_IDLIST;
+    canfilterconfig.FilterScale = CAN_FILTERSCALE_16BIT;
+    canfilterconfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    canfilterconfig.FilterActivation = ENABLE;
+
+    // inverter status can messages
+    canfilterconfig.FilterBank = 0;
+    canfilterconfig.FilterIdHigh = 0x0AA << 5;
+    canfilterconfig.FilterIdLow = 0x000;
+    canfilterconfig.FilterMaskIdHigh = 0xFFFF;
+    canfilterconfig.FilterMaskIdLow = 0xFFFF;
+
+    HAL_CAN_ConfigFilter(&hcan1, &canfilterconfig);
 
   /* USER CODE END CAN1_Init 2 */
 
