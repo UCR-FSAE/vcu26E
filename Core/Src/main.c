@@ -62,6 +62,8 @@ ETH_TxPacketConfig TxConfig;
 
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc3;
+DMA_HandleTypeDef hdma_adc1;
+DMA_HandleTypeDef hdma_adc3;
 
 CAN_HandleTypeDef hcan1;
 
@@ -69,36 +71,40 @@ ETH_HandleTypeDef heth;
 
 I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-// Plausibility timers
-Timer appsTimer = {0};
-Timer bseTimer = {0};
+/* USER CODE BEGIN PV */
 
-char implausibilityTriggered = 0;
-CAN_RxHeaderTypeDef RxHeader;
-uint8_t RxData[8];
+// Loop and Timing
+uint16_t counter = 0;
+uint16_t bseTimer = 0;
+uint16_t appsTimer = 0;
 
-float bseThreshold = 	40.0; // activation thresholds for the brakes
+// Raw Data Arrays/Variables
+volatile uint16_t APPSData[16] __attribute__((section(".sram1"), aligned(32)));
+volatile uint16_t bseRaw = 0;
+// Filtered and Processed Values
+float appsFiltered1 = 0;
+float appsFiltered2 = 0;
+float appsFiltered = 0;
+float torqueCommand = 0;
+float bseGradient = 0;
 
-float appsRaw;
-float bseRaw;
-float appsFiltered;
-float appsFiltered1;
-float appsFiltered2;
-float torqueCommand;
-float bseGradient;
+// Constants and Thresholds
+float bseThreshold = 500.0f; // Adjust based on your sensor calibration
+uint8_t implausibilityTriggered = 0;
 
-float APPSData[2];
-uint32_t counter = 0;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_ETH_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
@@ -106,6 +112,7 @@ static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_ADC3_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -141,6 +148,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ETH_Init();
   MX_I2C1_Init();
   MX_USART3_UART_Init();
@@ -148,65 +156,70 @@ int main(void)
   MX_ADC1_Init();
   MX_CAN1_Init();
   MX_ADC3_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_CAN_Start(&hcan1);
+  memset((void*)APPSData, 0, sizeof(APPSData));
+  HAL_ADC_Start_DMA(&hadc3, (uint32_t*)APPSData, 2);
+  HAL_TIM_Base_Start(&htim2);
+
+  // HAL_CAN_Start(&hcan1);
   // Activate Inverter and wait for inverter response
-  while(!InverterCheck()) {}
+  //while(!InverterCheck()) {}
 
   // Wait for RTD checks
-  while (!RTDCheck(bseThreshold)) {}
+ // while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
 	  counter++;
-
+	  SCB_InvalidateDCache_by_Addr((uint32_t *)APPSData, sizeof(APPSData));
 	  // Pedals Collection
-	  ADC_APPSCollection(APPSData);
-	  bseRaw = ADC_BSECollection();
+	  //ADC_APPSCollection(APPSData);
+//	  bseRaw = ADC_BSECollection();
 
 	  // Filtering
 	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
 	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
-
-	  // Calculate APPS activation percentage
-	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
-	  appsFiltered2 = APPS_CalculateActivationPercentage(appsFiltered2, 2);
-
-	  if (counter > 100) {
-		  // Plausibility Functions
-		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
-		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
-	  }
-
-	  // APPS averaging
-	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
-
-	  // Torque and Brakes Activation Percentage Calculation
-	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
-	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
-
-	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
-	  if (implausibilityTriggered) {
-		  Inverter_DisableInverter();
-		  torqueCommand = 0;
-	  }
-
-      // Brakes Activated = 0.0 torque, brake lights activated
-	  if (bseGradient > bseThreshold) {
-		  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
-		  if (torqueCommand > 500.0) { implausibilityTriggered = 1; }
-		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
-		  torqueCommand = 0.0;
-	  }
-	  // Brakes !Activated = calculated torque, brake lights not activated
-	  else {
-		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
-		  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
-		  if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
-	  }
-      Inverter_Process(torqueCommand);
+//
+//	  // Calculate APPS activation percentage
+//	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
+//	  appsFiltered2 = APPS_CalculateActivationPercentage(appsFiltered2, 2);
+//
+//	  if (counter > 100) {
+//		  // Plausibility Functions
+//		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+//		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
+//	  }
+//
+//	  // APPS averaging
+//	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
+//
+//	  // Torque and Brakes Activation Percentage Calculation
+//	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
+//	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
+//
+//	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
+//	  if (implausibilityTriggered) {
+//		  Inverter_DisableInverter();
+//		  torqueCommand = 0;
+//	  }
+//
+//      // Brakes Activated = 0.0 torque, brake lights activated
+//	  if (bseGradient > bseThreshold) {
+//		  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
+//		  if (torqueCommand > 500.0) { implausibilityTriggered = 1; }
+//		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
+//		  torqueCommand = 0.0;
+//	  }
+//	  // Brakes !Activated = calculated torque, brake lights not activated
+//	  else {
+//		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
+//		  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
+//		  if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
+//	  }
+//      Inverter_Process(torqueCommand);
 
 	  HAL_Delay(10);
   }
@@ -289,14 +302,14 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T2_TRGO;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -344,11 +357,11 @@ static void MX_ADC3_Init(void)
   hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc3.Init.ContinuousConvMode = DISABLE;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
-  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc3.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T2_TRGO;
   hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc3.Init.NbrOfConversion = 2;
-  hadc3.Init.DMAContinuousRequests = DISABLE;
+  hadc3.Init.DMAContinuousRequests = ENABLE;
   hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc3) != HAL_OK)
   {
@@ -531,6 +544,51 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 71;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 999;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
   * @brief USART3 Initialization Function
   * @param None
   * @retval None
@@ -597,6 +655,25 @@ static void MX_USB_OTG_FS_PCD_Init(void)
   /* USER CODE BEGIN USB_OTG_FS_Init 2 */
 
   /* USER CODE END USB_OTG_FS_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 4, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 4, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
 
 }
 
