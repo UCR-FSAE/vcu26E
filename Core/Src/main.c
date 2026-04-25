@@ -32,8 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ADC_BUF_LEN 10
-float count = 0;
+#define ADC_BUF_LEN 10  // if loop doesn't run increase this to like 1000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -81,6 +80,9 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 /* USER CODE BEGIN PV */
 volatile uint16_t ADC_BUF[ADC_BUF_LEN];
 volatile uint16_t ADC3_BUF[ADC_BUF_LEN];
+float voltage_PA6 = 0;
+float voltage_PF7 = 0;
+float voltage_PF8 = 0;
 
 uint16_t counter = 0;
 uint16_t bseTimer = 0;
@@ -172,6 +174,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1) {
 	  counter++;
+	  voltage_PA6 = ((float)ADC_BUF[0] * 3.3f) / 4095.0f;
+	  voltage_PF7 = ((float)ADC3_BUF[0] * 3.3f) / 4095.0f;
+	  voltage_PF8 = ((float)ADC3_BUF[0] * 3.3f) / 4095.0f;
+
 //	  // Pedals Collection
 //	  ADC_APPSCollection(APPSData);
 //	  bseRaw = ADC_BSECollection();
@@ -551,7 +557,6 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
 
@@ -564,15 +569,6 @@ static void MX_TIM2_Init(void)
   htim2.Init.Period = 1000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
   if (HAL_TIM_OC_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
