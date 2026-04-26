@@ -19,16 +19,20 @@ static float appsRaw02 = 0.0f, appsRaw12 = 0.0f, appsRaw22 = 0.0f; 	// rolling r
 
 
 // configuration and calibration variables
-float apps1Min = 		1.34; 		// 1.36
-float apps1Max = 		2.97; 		// 2.97
-float apps2Min = 		1.53;
-float apps2Max = 		2.97;
+float apps1Min = 		3.355; 	
+float apps1Max = 		4.938;
+float apps2Min = 		1.100;
+float apps2Max = 		2.768;
 float bseMin = 			0.65;
 float bseMax = 			2.28;
 char RTDActive = 		0; 			// bool for ready to drive
 char InverterReady = 	0;
 uint16_t delay = 		30;			// delay length in between loop executions
 float vScale =			3.3;
+/* Allowed raw voltage tolerance */
+float APPS_VOLT_TOL = 0.050; /*temp value*/
+/* Max allowed difference between the two pedal percentages */
+float APPS_PERCENT_DIFF_MAX = 10.0; /*temp value*/
 
 
 // APPS ADC Collection
@@ -64,10 +68,10 @@ float ADC_BSECollection() {
 // APPS percentage calculations
 float APPS_CalculateActivationPercentage(float adc, char channel) {
 	if (channel == 1) {
-		return 70.2865539932 * (adc - 1.54725277);
+		return (100.0 / (apps1Max - apps1Min)) * (adc - apps1Min);
 	}
 	else {
-		return 62.0920235829 * (adc - 1.35948718);
+		return (100.0 / (apps2Max - apps2Min)) * (adc - apps2Min);
 	}
 }
 
