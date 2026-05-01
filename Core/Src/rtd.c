@@ -27,13 +27,13 @@ char RTDCheck(float bseThreshold) {
 	float bseGradient = Drive_CalculateBrakesActivation(ADC_BSECollection());
 
 	// return 1 if RTD has been fulfilled
-	if ((bseGradient > bseThreshold) && !HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
+//	if ((bseGradient > bseThreshold) && !HAL_GPIO_ReadPin(GPIOB, Driver_Action_Pin)) {
 	  uint32_t startTick = HAL_GetTick();
 	  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, SET);
 	  while(HAL_GetTick() - startTick < 1500) {}
 	  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, RESET);
 	  return 1;
-	}
+//	}
 	// return 0 if RTD has not been fulfilled
-	return 0;
+//	return 0;
 }

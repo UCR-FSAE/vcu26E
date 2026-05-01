@@ -151,7 +151,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
   // Activate Inverter and wait for inverter response
-  while(!InverterCheck()) {}
+//  while(!InverterCheck()) {}
 
   // Wait for RTD checks
   while (!RTDCheck(bseThreshold)) {}
