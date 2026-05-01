@@ -93,9 +93,9 @@ char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2
 	// sets failbit of timer object to true if:
 	// apps signals exceed min or max values
 	// gradient of the 2 signals exceeds 15%
-	if (appsFiltered1 > 110.0 || appsFiltered1 < -10.0) { t->hasFailed = 1; }
-	if (appsFiltered2 > 110.0 || appsFiltered2 < -10.0) { t->hasFailed = 1; }
-	if (abs(appsFiltered1-appsFiltered2) > 30.0) { t->hasFailed = 1; }
+	if (appsFiltered1 > 100.0 || appsFiltered1 < -0.0) { t->hasFailed = 1; }
+	if (appsFiltered2 > 100.0 || appsFiltered2 < -0.0) { t->hasFailed = 1; }
+	if (abs(appsFiltered1-appsFiltered2) > 10.0) { t->hasFailed = 1; }
 
 	// starts timer if failbit is true
 	if (t->hasFailed) {
