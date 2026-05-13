@@ -34,6 +34,7 @@ typedef struct {
     uint32_t duration;
     uint8_t hasStarted;
     char hasFailed;
+    uint32_t failTick;
 } Timer;
 
 #endif

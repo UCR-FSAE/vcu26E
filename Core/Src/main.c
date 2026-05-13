@@ -73,6 +73,7 @@ UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
+/* USER CODE BEGIN PV */
 // Plausibility timers
 Timer appsTimer = {0};
 Timer bseTimer = {0};
@@ -151,10 +152,10 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
   // Activate Inverter and wait for inverter response
-  while(!InverterCheck()) {}
+//  while(!InverterCheck()) {}
 
   // Wait for RTD checks
-  while (!RTDCheck(bseThreshold)) {}
+//  while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -341,13 +342,13 @@ static void MX_ADC3_Init(void)
   hadc3.Instance = ADC3;
   hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc3.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc3.Init.ContinuousConvMode = DISABLE;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
   hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc3.Init.NbrOfConversion = 2;
+  hadc3.Init.NbrOfConversion = 1;
   hadc3.Init.DMAContinuousRequests = DISABLE;
   hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc3) != HAL_OK)
@@ -357,18 +358,9 @@ static void MX_ADC3_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_5;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
   sConfig.Channel = ADC_CHANNEL_6;
-  sConfig.Rank = ADC_REGULAR_RANK_2;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
   {
     Error_Handler();

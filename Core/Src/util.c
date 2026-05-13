@@ -39,26 +39,26 @@ float APPS_PERCENT_DIFF_MAX = 10.0; /*temp value*/
 void ADC_APPSCollection(float *readings) {
 
 	// ADC Input for APPS 1
-	HAL_ADC_Start(&hadc3);
-	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
-		uint32_t raw1 = HAL_ADC_GetValue(&hadc3);
+	HAL_ADC_Start(&hadc1);
+	if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+		uint32_t raw1 = HAL_ADC_GetValue(&hadc1);
 		readings[0] = ( (float) raw1 / (float) (4095.0)) * vScale;
 	}
 	// ADC Input for APPS 2
-	HAL_ADC_Start(&hadc3);
-	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
-		uint32_t raw2 = HAL_ADC_GetValue(&hadc3);
+	HAL_ADC_Start(&hadc1);
+	if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+		uint32_t raw2 = HAL_ADC_GetValue(&hadc1);
 		readings[1] = ( (float) raw2 / (float) (4095.0)) * vScale;
 	}
 
-	HAL_ADC_Stop(&hadc3);
+	HAL_ADC_Stop(&hadc1);
 }
 
 // BSE ADC Collection
 float ADC_BSECollection() {
-	HAL_ADC_Start(&hadc1);
-	if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-		return ((float) (HAL_ADC_GetValue(&hadc1) / (float) (4095.0)) * vScale);
+	HAL_ADC_Start(&hadc3);
+	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
+		return ((float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * vScale);
 	}
 	else {
 		return 4095.0;
@@ -153,7 +153,11 @@ void timerReset(Timer *t) {
 // checks for timer duration. returns true if timer reaches duration. else return false
 char timerExpires(Timer *t) {
 	if (t->hasStarted) {
-		if ((HAL_GetTick() - t->curTick) >= t->duration) { return 1; }
+		uint32_t currentTick = HAL_GetTick();
+		if ((currentTick - t->curTick) >= t->duration) {
+			t->failTick = currentTick;
+			return 1;
+		}
 	}
 	return 0;
 }
