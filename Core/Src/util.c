@@ -19,10 +19,10 @@ static float appsRaw02 = 0.0f, appsRaw12 = 0.0f, appsRaw22 = 0.0f; 	// rolling r
 
 
 // configuration and calibration variables
-float apps1Min = 		3.355; 	
-float apps1Max = 		4.938;
-float apps2Min = 		1.100;
-float apps2Max = 		2.768;
+float apps1Min = 		1.4;
+float apps1Max = 		3.3;
+float apps2Min = 		0.4;
+float apps2Max = 		1.3;
 float bseMin = 			0.65;
 float bseMax = 			2.28;
 char RTDActive = 		0; 			// bool for ready to drive
