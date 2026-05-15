@@ -181,7 +181,7 @@ int main(void)
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
 
 	  // Torque and Brakes Activation Percentage Calculation
-	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
+	  torqueCommand = 2200.0 * (appsFiltered / 100.0);
 	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
 
 	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs

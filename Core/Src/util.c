@@ -73,9 +73,25 @@ float APPS_CalculateActivationPercentage(float adc, char channel) {
 
 	if (channel == 1) {
 
+		if (adc < 1.5f) { return 150.0f; }
+		if (adc > 3.1f) { return -150.0f; }
+
+		if (1.5f <= adc && adc <= 1.82f) { return 62.5f * (adc - 1.5f); }
+		else if (1.82f < adc && adc <= 2.14f) { return 20.0f + 62.5f * (adc - 1.82f); }
+		else if (2.14f < adc && adc <= 2.46f) { return 40.0f + 62.5f * (adc - 2.14f); }
+		else if (2.46f < adc && adc <= 2.72f) { return 60.0f + 76.92f * (adc - 2.46f); }
+		else if (2.72f < adc && adc <= 3.1f) {return 80.0f + 52.63f * (adc - 2.72f); }
 	}
 	else {
-		return (100.0 * (adc - apps2Min) / (apps2Max - apps2Min));
+
+		if (adc < 0.5f) { return 155.0f; }
+		if (adc > 1.3f) { return -155.0f; }
+
+		if (0.5f <= adc && adc <= 0.66f) { return 125.0f * (adc - 0.5f); }
+		else if (0.66f < adc && adc <= 0.82f) { return 20.0f + 125.0f * (adc - 0.66f); }
+		else if (0.82f < adc && adc <= 0.98f) { return 40.0f + 125.0f * (adc - 0.82f); }
+		else if (0.98f < adc && adc <= 1.16f) { return 60.0f + 111.11f * (adc - 0.98f); }
+		else if (1.16f < adc && adc <= 1.3f) {return 80.0f + 142.86f * (adc - 1.16f); }
 	}
 }
 

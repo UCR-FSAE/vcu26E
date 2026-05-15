@@ -28,8 +28,8 @@ char RTDCheck(float bseThreshold) {
 
 	// return 1 if RTD has been fulfilled
 	if ((bseGradient > bseThreshold) &&
-			HAL_GPIO_ReadPin(Driver_Action_Pin_Port, Driver_Action_Pin) &&
-			HAL_GPIO_ReadPin(Tractive_Active_Port, Tractive_Active_Pin)) {
+			HAL_GPIO_ReadPin(Driver_Action_GPIO_Port, Driver_Action_Pin) &&
+			HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) {
 
 	  uint32_t startTick = HAL_GetTick();
 	  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, SET);
