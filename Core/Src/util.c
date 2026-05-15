@@ -19,9 +19,9 @@ static float appsRaw02 = 0.0f, appsRaw12 = 0.0f, appsRaw22 = 0.0f; 	// rolling r
 
 
 // configuration and calibration variables
-float apps1Min = 		1.4;
-float apps1Max = 		3.3;
-float apps2Min = 		0.4;
+float apps1Min = 		1.5;
+float apps1Max = 		3.1;
+float apps2Min = 		0.5;
 float apps2Max = 		1.3;
 float bseMin = 			0.65;
 float bseMax = 			2.28;
@@ -33,6 +33,9 @@ float vScale =			3.3;
 float APPS_VOLT_TOL = 0.050; /*temp value*/
 /* Max allowed difference between the two pedal percentages */
 float APPS_PERCENT_DIFF_MAX = 10.0; /*temp value*/
+
+float apps1Debug = 0;
+float apps2Debug = 0;
 
 
 // APPS ADC Collection
@@ -67,11 +70,12 @@ float ADC_BSECollection() {
 
 // APPS percentage calculations
 float APPS_CalculateActivationPercentage(float adc, char channel) {
+
 	if (channel == 1) {
-		return (100.0 / (apps1Max - apps1Min)) * (adc - apps1Min);
+
 	}
 	else {
-		return (100.0 / (apps2Max - apps2Min)) * (adc - apps2Min);
+		return (100.0 * (adc - apps2Min) / (apps2Max - apps2Min));
 	}
 }
 
@@ -105,7 +109,11 @@ char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2
 	}
 
 	// function returns true if timer exceeds 100ms
-	if (timerExpires(t)) { return 1; }
+	if (timerExpires(t)) {
+		apps1Debug = appsFiltered1;
+		apps2Debug = appsFiltered2;
+		return 1;
+	}
 	return 0;
 }
 

@@ -67,8 +67,6 @@ CAN_HandleTypeDef hcan1;
 
 ETH_HandleTypeDef heth;
 
-I2C_HandleTypeDef hi2c1;
-
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
@@ -101,7 +99,6 @@ uint32_t counter = 0;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_ADC1_Init(void);
@@ -143,7 +140,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ETH_Init();
-  MX_I2C1_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   MX_ADC1_Init();
@@ -155,7 +151,7 @@ int main(void)
 //  while(!InverterCheck()) {}
 
   // Wait for RTD checks
-//  while (!RTDCheck(bseThreshold)) {}
+  while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -168,14 +164,14 @@ int main(void)
 	  bseRaw = ADC_BSECollection();
 
 	  // Filtering
-	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
-	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
+//	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
+//	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
 
 	  // Calculate APPS activation percentage
 	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
 	  appsFiltered2 = APPS_CalculateActivationPercentage(appsFiltered2, 2);
 
-	  if (counter > 100) {
+	  if (counter > 1000) {
 		  // Plausibility Functions
 		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
 		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
@@ -197,7 +193,13 @@ int main(void)
       // Brakes Activated = 0.0 torque, brake lights activated
 	  if (bseGradient > bseThreshold) {
 		  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
-		  if (torqueCommand > 500.0) { implausibilityTriggered = 1; }
+		  if (torqueCommand > 500.0) {
+			  implausibilityTriggered = 1;
+			  if (appsFiltered <= 5.0) {
+				  implausibilityTriggered = 0;
+			  }
+
+		  }
 		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
 		  torqueCommand = 0.0;
 	  }
@@ -485,54 +487,6 @@ static void MX_ETH_Init(void)
 }
 
 /**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x00808CD2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
   * @brief USART3 Initialization Function
   * @param None
   * @retval None
@@ -669,11 +623,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : Driver_Action_Pin */
-  GPIO_InitStruct.Pin = Driver_Action_Pin;
+  /*Configure GPIO pins : Driver_Action_Pin Tractive_Active_Pin */
+  GPIO_InitStruct.Pin = Driver_Action_Pin|Tractive_Active_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(Driver_Action_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
@@ -687,6 +641,14 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
