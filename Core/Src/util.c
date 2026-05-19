@@ -6,6 +6,7 @@
  */
 #include <stdlib.h>
 #include <util.h>
+#include <math.h>
 
 // APPS Slew Filter Values for apps 1
 static float appsPrev1 = 0.0f;          							// previous filtered voltage
@@ -23,8 +24,8 @@ float apps1Min = 		1.4;
 float apps1Max = 		3.2;
 float apps2Min = 		0.4;
 float apps2Max = 		1.4;
-float bseMin = 			0.65;
-float bseMax = 			2.28;
+float bseMin = 			0.3;
+float bseMax = 			1.3;
 char RTDActive = 		0; 			// bool for ready to drive
 char InverterReady = 	0;
 uint16_t delay = 		30;			// delay length in between loop executions
@@ -72,29 +73,30 @@ float APPS_CalculateActivationPercentage(float adc, char channel) {
 
 	if (channel == 1) {
 
-//		if (adc < apps1Min) { return 150.0f; }
-//		if (adc > apps1Max) { return -150.0f; }
+		if (adc < apps1Min) { return -1.0f; }
+		if (adc > apps1Max) { return -1.0f; }
 
 		if (1.5f <= adc && adc <= 1.82f) { return 62.5f * (adc - 1.4f); }
 		else if (1.82f < adc && adc <= 2.14f) { return 20.0f + 62.5f * (adc - 1.82f); }
 		else if (2.14f < adc && adc <= 2.46f) { return 40.0f + 62.5f * (adc - 2.14f); }
 		else if (2.46f < adc && adc <= 2.72f) { return 60.0f + 76.92f * (adc - 2.46f); }
 		else if (2.72f < adc && adc <= 3.1f) {return 80.0f + 52.63f * (adc - 2.72f); }
+//		return -1.0;
+		else {return 80.0f + 52.63f * (adc - 2.72f); }
 
-		return -1;
 	}
 	else {
 
-//		if (adc < apps2Min) { return 155.0f; }
-//		if (adc > apps2Max) { return -155.0f; }
+		if (adc < apps2Min) { return -1.0f; }
+		if (adc > apps2Max) { return -1.0f; }
 
 		if (0.5f <= adc && adc <= 0.66f) { return 125.0f * (adc - 0.4f); }
 		else if (0.66f < adc && adc <= 0.82f) { return 20.0f + 125.0f * (adc - 0.66f); }
 		else if (0.82f < adc && adc <= 0.98f) { return 40.0f + 125.0f * (adc - 0.82f); }
 		else if (0.98f < adc && adc <= 1.16f) { return 60.0f + 111.11f * (adc - 0.98f); }
-		else if (1.16f < adc && adc <= 1.3f) {return 80.0f + 142.86f * (adc - 1.16f); }
-
-		return -1;
+//		else if (1.16f < adc && adc <= 1.3f) {return 80.0f + 142.86f * (adc - 1.16f); }
+		else {return 80.0f + 142.86f * (adc - 1.16f); }
+//		return -1.0;
 	}
 }
 
@@ -106,29 +108,36 @@ float Drive_CalculateTorqueCommand(float appsRaw) {
 
 // brakes percentage calculations
 float Drive_CalculateBrakesActivation(float bseRaw) {
-	return (60.9756 * (bseRaw - 0.64));
+	return (100 * (bseRaw - bseMin) / (bseMax - bseMin));
 }
 
 // APPs plausibility code
 char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2) {
-	t->hasFailed = 0;
+	char currentFaultState = 0;
 
 	// sets failbit of timer object to true if:
 	// apps signals exceed min or max values
 	// gradient of the 2 signals exceeds 15%
-	if (appsFiltered1 > 100.0 || appsFiltered1 < -0.0) { t->hasFailed = 1; }
-	if (appsFiltered2 > 100.0 || appsFiltered2 < -0.0) { t->hasFailed = 1; }
-	if (abs(appsFiltered1-appsFiltered2) > 10.0) { t->hasFailed = 1; }
+	if (appsFiltered1 > 110.0 || appsFiltered1 < 0.0) { currentFaultState = 1;}
+	if (appsFiltered2 > 110.0 || appsFiltered2 < 0.0) { currentFaultState = 1; }
+	if (fabsf(appsFiltered1-appsFiltered2) > 20.0) { currentFaultState = 1; }
 
+
+	if (currentFaultState == 1) {
+		if (t->hasFailed == 0) {
+			timerStart(t, 100);
+			t->hasFailed = 1;
+		}
+	}
 	// starts timer if failbit is true
-	if (t->hasFailed) {
-		timerStart(t, 100);
-	} else {
-		timerReset(t);
+	 else {
+			timerReset(t);
+			t->hasFailed = 0;
+			currentFaultState = 0;
 	}
 
 	// function returns true if timer exceeds 100ms
-	if (timerExpires(t)) {
+	if (t->hasFailed == 1 && timerExpires(t)) {
 		return 1;
 	}
 	return 0;
@@ -138,20 +147,29 @@ char APPS_ImplausibilityCheck(Timer *t, float appsFiltered1, float appsFiltered2
 // starts timer if bse value is out of bound.
 // returns true if error persists for more than 100ms, else timer resets and returns false.
 char BSE_ImplausibilityCheck(Timer* t, float bseRaw) {
-	t->hasFailed = 0;
+	char currentFaultState = 0;
 
 	// sets failbit of timer object to true if BSE signal exceeds max or min value
-	if (bseRaw < bseMin || bseRaw > bseMax){ t->hasFailed = 1; }
+	if (bseRaw < bseMin || bseRaw > bseMax){ currentFaultState = 1; }
 
 	// starts timer if failbit is true
-	if (t->hasFailed) {
-		timerStart(t, 100);
-	} else {
-		timerReset(t);
+	if (currentFaultState == 1) {
+		if (t->hasFailed == 0) {
+			timerStart(t, 100);
+			t->hasFailed = 1;
+		}
+	}
+	// starts timer if failbit is true
+	 else {
+			timerReset(t);
+			t->hasFailed = 0;
+			currentFaultState = 0;
 	}
 
 	// function returns true if timer exceeds 100ms
-	if (timerExpires(t)) { return 1; }
+	if (t->hasFailed == 1 && timerExpires(t)) {
+		return 1;
+	}
 	return 0;
 }
 

@@ -17,6 +17,8 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+
+
 #include "main.h"
 #include "string.h"
 
@@ -80,8 +82,8 @@ char implausibilityTriggered = 0;
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 
-float bseThreshold = 	40.0; // activation thresholds for the brakes
-
+float bseThreshold = 	0.8; // activation thresholds for the brakes
+char brakesActivated = 0;
 float appsRaw;
 float bseRaw;
 float appsFiltered;
@@ -154,12 +156,14 @@ int main(void)
 //  while(!InverterCheck()) {}
   Inverter_Init();
 
+  Inverter_Process(0.0);
   // Wait for RTD checks
 //  while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+//  char direction = 0;
   while (1) {
 	  counter++;
 
@@ -175,26 +179,35 @@ int main(void)
 	  appsFiltered1 = APPS_CalculateActivationPercentage(APPSData[0], 1);
 	  appsFiltered2 = APPS_CalculateActivationPercentage(APPSData[1], 2);
 
-		  // Plausibility Functions
+	  // Plausibility Functions
 	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
 	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
 		  apps1Debug = appsFiltered1;
 		  apps2Debug = appsFiltered2;
 		  implausibilityTriggered = 1;
+//		  return 0;
 	  }
 
 	  // APPS averaging
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
-	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
+	  if (bseRaw >= 0.8) {
+		  brakesActivated = 1;
+	  }
+	  else {
+		  brakesActivated = 0;
+	  }
 
 	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
 	  if (implausibilityTriggered) {
+		  torqueCommand = 0.0;
+	      Inverter_Process(torqueCommand);
 		  Inverter_DisableInverter();
-		  torqueCommand = 0;
-		  if (appsFiltered <= 5.0) {
-			  Inverter_EnableInverter();
-			  implausibilityTriggered = 0;
-		  }
+		  return 0;
+
+//		  if (appsFiltered >= 0.0f && appsFiltered <= 5.0f) {
+//			  Inverter_EnableInverter();
+//			  implausibilityTriggered = 0;
+//		  }
 	  }
 	  else {
 		  if (appsFiltered <= 15.0) {
@@ -202,13 +215,14 @@ int main(void)
 		  }
 		  else {
 			  // Torque and Brakes Activation Percentage Calculation
-			  torqueCommand = 2200.0 * ((appsFiltered - 15.0) / 100.0);
+			  torqueCommand = 50.0 * ((appsFiltered - 15.0) / 100.0);
+//			  torqueCommand = 231.0 * ((appsFiltered - 15.0) / 100.0);
 		  }
 
 		  // Brakes Activated = 0.0 torque, brake lights activated
-		  if (bseGradient > bseThreshold) {
+		  if (brakesActivated == 1) {
 			  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
-			  if (torqueCommand > 500.0) {
+			  if (appsFiltered >= 15.0) {
 				  implausibilityTriggered = 1;
 			  }
 			  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
@@ -219,9 +233,24 @@ int main(void)
 			  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
 		  }
 	  }
+
+//	  if (direction == 0) {
+//		  torqueCommand++;
+//	  }
+//	  if (direction == 1) {
+//		  torqueCommand--;
+//	  }
+//	  if (torqueCommand >= 50.0) {
+//		  direction = 1;
+//	  }
+//	  if (torqueCommand <= 0.0) {
+//		  direction = 0;
+//	  }
+
+
       Inverter_Process(torqueCommand);
 
-	  HAL_Delay(10);
+	  HAL_Delay(100);
   }
 
     /* USER CODE END WHILE */
