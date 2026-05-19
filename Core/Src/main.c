@@ -17,8 +17,6 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-
-
 #include "main.h"
 #include "string.h"
 
@@ -157,8 +155,9 @@ int main(void)
   Inverter_Init();
 
   Inverter_Process(0.0);
+  HAL_Delay(10000);
   // Wait for RTD checks
-//  while (!RTDCheck(bseThreshold)) {}
+  while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -202,12 +201,12 @@ int main(void)
 		  torqueCommand = 0.0;
 	      Inverter_Process(torqueCommand);
 		  Inverter_DisableInverter();
-		  return 0;
+//		  return 0;
 
-//		  if (appsFiltered >= 0.0f && appsFiltered <= 5.0f) {
-//			  Inverter_EnableInverter();
-//			  implausibilityTriggered = 0;
-//		  }
+		  if (appsFiltered >= 0.0f && appsFiltered <= 5.0f) {
+			  Inverter_EnableInverter();
+			  implausibilityTriggered = 0;
+		  }
 	  }
 	  else {
 		  if (appsFiltered <= 15.0) {
@@ -662,11 +661,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Driver_Action_Pin Tractive_Active_Pin */
-  GPIO_InitStruct.Pin = Driver_Action_Pin|Tractive_Active_Pin;
+  /*Configure GPIO pin : Driver_Action_Pin */
+  GPIO_InitStruct.Pin = Driver_Action_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(Driver_Action_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
@@ -688,6 +687,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Tractive_Active_Pin */
+  GPIO_InitStruct.Pin = Tractive_Active_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Tractive_Active_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
