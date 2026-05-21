@@ -81,6 +81,7 @@ CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 
 float bseThreshold = 	0.8; // activation thresholds for the brakes
+char RTDReady = 0;
 char brakesActivated = 0;
 float appsRaw;
 float bseRaw;
@@ -155,7 +156,7 @@ int main(void)
   Inverter_Init();
 
   Inverter_Process(0.0);
-  HAL_Delay(10000);
+
   // Wait for RTD checks
   while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
@@ -164,6 +165,14 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 //  char direction = 0;
   while (1) {
+
+	  while(RTDReady == 0) {
+		  if (RTDCheck(bseThreshold) == 1) {
+			  RTDReady = 1;
+		  }
+	  }
+
+
 	  counter++;
 
 	  // Pedals Collection
