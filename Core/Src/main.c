@@ -156,20 +156,16 @@ int main(void)
   Inverter_Init();
 
   Inverter_Process(0.0);
-
-  // Wait for RTD checks
-  while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//  char direction = 0;
-  while (1) {
 
-	  while(RTDReady == 0) {
-		  if (RTDCheck(bseThreshold) == 1) {
-			  RTDReady = 1;
-		  }
+  while (1) {
+	  if (!HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) { RTDReady = 0; }
+
+	  while (RTDReady == 0) {
+		  if (RTDCheck(bseThreshold) == 0) { RTDReady = 1; }
 	  }
 
 
@@ -224,7 +220,6 @@ int main(void)
 		  else {
 			  // Torque and Brakes Activation Percentage Calculation
 			  torqueCommand = 50.0 * ((appsFiltered - 15.0) / 100.0);
-//			  torqueCommand = 231.0 * ((appsFiltered - 15.0) / 100.0);
 		  }
 
 		  // Brakes Activated = 0.0 torque, brake lights activated

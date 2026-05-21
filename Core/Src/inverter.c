@@ -103,51 +103,6 @@ void Inverter_TransmitCANMessage(uint16_t torque, uint8_t direction, uint8_t inv
   * @brief  Enable inverter
   * @retval None
   */
-void Inverter_EnableInverter(void)
-{
-  Inverter_TransmitCANMessage(0, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE);
+void Inverter_EnableInverter(void) { Inverter_TransmitCANMessage(0, Inverter_DIRECTION_FORWARD, Inverter_INVERTER_ENABLE); }
 
-//  CAN_TxHeaderTypeDef txHeader;
-//  uint8_t txData[8];
-//  uint32_t txMailbox;
-//  HAL_StatusTypeDef status;
-//
-//  /* Configure transmission */
-//  txHeader.StdId = Inverter_INVERTER_COMMAND_ID;
-//  txHeader.ExtId = 0;
-//  txHeader.IDE = CAN_ID_STD;
-//  txHeader.RTR = CAN_RTR_DATA;
-//  txHeader.DLC = 8;
-//  txHeader.TransmitGlobalTime = DISABLE;
-//
-//  txData[0] = (uint8_t) 0x00;
-//  txData[1] = 1;
-//
-//  txData[2] = 0;
-//  txData[3] = 0;
-//
-//  txData[4] = 0;
-//  txData[5] = 1;
-//
-//  txData[6] = 0;
-//  txData[7] = 0;
-//
-//  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0) {
-//    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX0);
-//    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX1);
-//    HAL_CAN_AbortTxRequest(&hcan1, CAN_TX_MAILBOX2);
-//  }
-//
-//  status = HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
-//
-//  if (status != HAL_OK) {
-//    if (HAL_CAN_AbortTxRequest(&hcan1, txMailbox) != HAL_OK) {
-//      Error_Handler();
-//    }
-//  }
-}
-
-void Inverter_DisableInverter(void)
-{
-  Inverter_TransmitCANMessage(0, 0, Inverter_INVERTER_DISABLE);
-}
+void Inverter_DisableInverter(void) { Inverter_TransmitCANMessage(0, 0, Inverter_INVERTER_DISABLE); }
