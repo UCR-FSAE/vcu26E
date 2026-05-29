@@ -154,26 +154,39 @@ int main(void)
   // Activate Inverter and wait for inverter response
 //  while(!InverterCheck()) {}
   Inverter_Init();
+//  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+//  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+//  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+//
+//  HAL_Delay(10000);
+//
+//  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+//  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+//  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 
   Inverter_Process(0.0);
+
+//  while (!RTDCheck(bseThreshold)) {}
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
   while (1) {
-	  if (!HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) { RTDReady = 0; }
-
-	  while (RTDReady == 0) {
-		  if (RTDCheck(bseThreshold) == 0) { RTDReady = 1; }
-	  }
+//	  for(volatile uint32_t i = 0; i < 200000; i++) { __NOP(); }
+//	  if (!HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) { RTDReady = 0; }
+//
+//	  while (RTDReady == 0) {
+//		  if (RTDCheck(bseThreshold) == 0) { RTDReady = 1; }
+//	  }
 
 
 	  counter++;
 
 	  // Pedals Collection
 	  ADC_APPSCollection(APPSData);
-	  bseRaw = ADC_BSECollection();
+//	  bseRaw = ADC_BSECollection();
 
 	  // Filtering
 //	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
@@ -184,7 +197,7 @@ int main(void)
 	  appsFiltered2 = APPS_CalculateActivationPercentage(APPSData[1], 2);
 
 	  // Plausibility Functions
-	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+//	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
 	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
 		  apps1Debug = appsFiltered1;
 		  apps2Debug = appsFiltered2;
@@ -236,21 +249,6 @@ int main(void)
 			  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
 		  }
 	  }
-
-//	  if (direction == 0) {
-//		  torqueCommand++;
-//	  }
-//	  if (direction == 1) {
-//		  torqueCommand--;
-//	  }
-//	  if (torqueCommand >= 50.0) {
-//		  direction = 1;
-//	  }
-//	  if (torqueCommand <= 0.0) {
-//		  direction = 0;
-//	  }
-
-
       Inverter_Process(torqueCommand);
 
 	  HAL_Delay(100);
@@ -283,14 +281,15 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 8;
   RCC_OscInitStruct.PLL.PLLN = 72;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 3;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
