@@ -178,7 +178,7 @@ int main(void)
 //
 	  // blocking loop, waiting for full rtd sequence (brakes, driver action, tractive active)
 	  while (RTDReady == 0) {
-		  if (RTDCheck(bseThreshold) == 0) { RTDReady = 1; }
+		  if (RTDCheck(bseThreshold) == 1) { RTDReady = 1; }
 	  }
 
 	  if (HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)) { RecalibratePedals(); }
@@ -188,14 +188,14 @@ int main(void)
 
 	  // Pedals Collection
 	  ADC_APPSCollection(APPSData);
-//	  bseRaw = ADC_BSECollection();
+	  bseRaw = ADC_BSECollection();
 
 	  // Calculate APPS activation percentage
 	  appsFiltered1 = APPS_CalculateActivationPercentage(APPSData[0], 1);
 	  appsFiltered2 = APPS_CalculateActivationPercentage(APPSData[1], 2);
 
 	  // Plausibility Functions
-//	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
 	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
 		  apps1Debug = appsFiltered1;
 		  apps2Debug = appsFiltered2;
@@ -205,12 +205,12 @@ int main(void)
 
 	  // APPS averaging
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
-//	  if (bseRaw >= 0.8) {
-//		  brakesActivated = 1;
-//	  }
-//	  else {
-//		  brakesActivated = 0;
-//	  }
+	  if (bseRaw >= 0.8) {
+		  brakesActivated = 1;
+	  }
+	  else {
+		  brakesActivated = 0;
+	  }
 
 	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
 	  if (implausibilityTriggered) {
@@ -230,7 +230,7 @@ int main(void)
 		  }
 		  else {
 			  // Torque and Brakes Activation Percentage Calculation
-			  torqueCommand = 50.0 * ((appsFiltered - 15.0) / 100.0);
+			  torqueCommand = 500.0 * ((appsFiltered - 15.0) / 100.0);
 		  }
 
 		  // Brakes Activated = 0.0 torque, brake lights activated
