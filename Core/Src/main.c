@@ -153,19 +153,6 @@ int main(void)
   HAL_CAN_Start(&hcan1);
   // Activate Inverter and wait for inverter response
 //  while(!InverterCheck()) {}
-  Inverter_Init();
-
-  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-
-  HAL_Delay(3000);
-
-  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
-
-  Inverter_Process(0.0);
 
   /* USER CODE END 2 */
 

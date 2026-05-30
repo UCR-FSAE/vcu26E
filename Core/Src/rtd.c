@@ -37,7 +37,7 @@ char RTDCheck(float bseThreshold) {
 	  while(HAL_GetTick() - startTick < 1500) {}
 	  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, RESET);
 	  return 1;
-	}
+//	}
 	// return 0 if RTD has not been fulfilled
-	return 0;
+//	return 0;
 }
