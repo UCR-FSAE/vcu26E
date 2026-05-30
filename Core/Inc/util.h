@@ -14,6 +14,8 @@ extern ADC_HandleTypeDef hadc3;
 extern ADC_HandleTypeDef hadc1;
 
 
+void RecalibratePedals();
+
 // ADC Collection
 void ADC_APPSCollection(float *readings);
 float ADC_BSECollection();

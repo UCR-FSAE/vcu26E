@@ -24,13 +24,14 @@ char InverterCheck() {
 
 
 char RTDCheck(float bseThreshold) {
-	float bseRaw = ADC_BSECollection();
+//	float bseRaw = ADC_BSECollection();
 
 	// return 1 if RTD has been fulfilled
-	if ((bseRaw > bseThreshold) &&
-			!HAL_GPIO_ReadPin(Driver_Action_GPIO_Port, Driver_Action_Pin) &&
-			HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) {
+//	if ((bseRaw > bseThreshold) && !HAL_GPIO_ReadPin(Driver_Action_GPIO_Port, Driver_Action_Pin)) {
+//			!HAL_GPIO_ReadPin(Driver_Action_GPIO_Port, Driver_Action_Pin) &&
+//			HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) {
 
+	if (HAL_GPIO_ReadPin(Driver_Action_GPIO_Port, Driver_Action_Pin)) {
 	  uint32_t startTick = HAL_GetTick();
 	  HAL_GPIO_WritePin(GPIOB, RTD_Output_Pin, SET);
 	  while(HAL_GetTick() - startTick < 1500) {}

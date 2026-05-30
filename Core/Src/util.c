@@ -35,7 +35,108 @@ float APPS_VOLT_TOL = 0.050; /*temp value*/
 /* Max allowed difference between the two pedal percentages */
 float APPS_PERCENT_DIFF_MAX = 10.0; /*temp value*/
 
+void RecalibratePedals() {
 
+	float reading = 0.0;
+	float newAppsMax1 = 0.0;
+	float newAppsMax2 = 0.0;
+	float newAppsMin1 = 6.0;
+	float newAppsMin2 = 6.0;
+	float newBseMax = 0.0;
+	float newBseMin = 0.0;
+
+	HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+	HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+	HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+
+	// new apps mins
+	int init = HAL_GetTick();
+	while (HAL_GetTick() - init <= 3000) {
+		// ADC Input for APPS 1
+		HAL_ADC_Start(&hadc1);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+			uint32_t raw1 = HAL_ADC_GetValue(&hadc1);
+			reading = ( (float) raw1 / (float) (4095.0)) * vScale;
+			if (reading < newAppsMin1) { newAppsMin1 = reading; }
+		}
+		// ADC Input for APPS 2
+		HAL_ADC_Start(&hadc1);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+			uint32_t raw2 = HAL_ADC_GetValue(&hadc1);
+			reading = ( (float) raw2 / (float) (4095.0)) * vScale;
+			if (reading < newAppsMin2) { newAppsMin2 = reading; }
+		}
+
+		HAL_ADC_Stop(&hadc1);
+	}
+
+	HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+	HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+	HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+
+	// new apps maxes
+	init = HAL_GetTick();
+	while (HAL_GetTick() - init <= 3000) {
+		// ADC Input for APPS 1
+		HAL_ADC_Start(&hadc1);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+			uint32_t raw1 = HAL_ADC_GetValue(&hadc1);
+			reading = ( (float) raw1 / (float) (4095.0)) * vScale;
+			if (reading > newAppsMax1) { newAppsMax1 = reading; }
+		}
+		// ADC Input for APPS 2
+		HAL_ADC_Start(&hadc1);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
+			uint32_t raw2 = HAL_ADC_GetValue(&hadc1);
+			reading = ( (float) raw2 / (float) (4095.0)) * vScale;
+			if (reading > newAppsMax2) { newAppsMax2 = reading; }
+		}
+
+		HAL_ADC_Stop(&hadc1);
+	}
+
+	HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+	HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+	HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+
+	// new brakes mins
+	init = HAL_GetTick();
+	while (HAL_GetTick() - init <= 3000) {
+		HAL_ADC_Start(&hadc3);
+		if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
+			reading = (float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * vScale;
+			if (reading < newBseMin) { newBseMin = reading; }
+		}
+	}
+
+	HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+	HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+	HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+
+	// new brakes maxes
+	init = HAL_GetTick();
+	while (HAL_GetTick() - init <= 3000) {
+		HAL_ADC_Start(&hadc3);
+		if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
+			reading = (float) (HAL_ADC_GetValue(&hadc3) / (float) (4095.0)) * vScale;
+			if (reading > newBseMax) { newBseMax = reading; }
+		}
+	}
+
+	HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+	HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+	HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+
+	apps1Min = newAppsMin1 * 0.9;
+	apps2Min = newAppsMin2 * 0.9;
+	apps1Max = newAppsMax1 * 1.1;
+	apps2Max = newAppsMax2 * 1.1;
+	bseMin = newBseMin * 0.9;
+	bseMax = newBseMax * 1.1;
+
+
+
+}
 
 
 // APPS ADC Collection

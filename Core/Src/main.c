@@ -154,19 +154,18 @@ int main(void)
   // Activate Inverter and wait for inverter response
 //  while(!InverterCheck()) {}
   Inverter_Init();
-//  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
-//  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
-//  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
-//
-//  HAL_Delay(10000);
-//
-//  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
-//  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
-//  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
+
+  HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
+  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
+  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
+
+  HAL_Delay(3000);
+
+  HAL_GPIO_WritePin(GPIOB, LD1_Pin, RESET);
+  HAL_GPIO_WritePin(GPIOB, LD2_Pin, RESET);
+  HAL_GPIO_WritePin(GPIOB, LD3_Pin, RESET);
 
   Inverter_Process(0.0);
-
-//  while (!RTDCheck(bseThreshold)) {}
 
   /* USER CODE END 2 */
 
@@ -174,12 +173,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 
   while (1) {
-//	  for(volatile uint32_t i = 0; i < 200000; i++) { __NOP(); }
+	  // stops car running if Tractive Active Deactivates
 //	  if (!HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) { RTDReady = 0; }
 //
-//	  while (RTDReady == 0) {
-//		  if (RTDCheck(bseThreshold) == 0) { RTDReady = 1; }
-//	  }
+	  // blocking loop, waiting for full rtd sequence (brakes, driver action, tractive active)
+	  while (RTDReady == 0) {
+		  if (RTDCheck(bseThreshold) == 0) { RTDReady = 1; }
+	  }
+
+	  if (HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)) { RecalibratePedals(); }
 
 
 	  counter++;
@@ -187,10 +189,6 @@ int main(void)
 	  // Pedals Collection
 	  ADC_APPSCollection(APPSData);
 //	  bseRaw = ADC_BSECollection();
-
-	  // Filtering
-//	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
-//	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
 
 	  // Calculate APPS activation percentage
 	  appsFiltered1 = APPS_CalculateActivationPercentage(APPSData[0], 1);
@@ -207,12 +205,12 @@ int main(void)
 
 	  // APPS averaging
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
-	  if (bseRaw >= 0.8) {
-		  brakesActivated = 1;
-	  }
-	  else {
-		  brakesActivated = 0;
-	  }
+//	  if (bseRaw >= 0.8) {
+//		  brakesActivated = 1;
+//	  }
+//	  else {
+//		  brakesActivated = 0;
+//	  }
 
 	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
 	  if (implausibilityTriggered) {
