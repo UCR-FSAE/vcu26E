@@ -77,6 +77,7 @@ Timer appsTimer = {0};
 Timer bseTimer = {0};
 
 char implausibilityTriggered = 0;
+char pedalFaultTriggered = 0;
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 
@@ -167,6 +168,7 @@ int main(void)
 	  while (RTDReady == 0) {
 		  if (RTDCheck(bseThreshold) == 1) { RTDReady = 1; }
 	  }
+	  if (!HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) { RTDReady = 0; }
 
 	  if (HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)) { RecalibratePedals(); }
 
@@ -182,12 +184,9 @@ int main(void)
 	  appsFiltered2 = APPS_CalculateActivationPercentage(APPSData[1], 2);
 
 	  // Plausibility Functions
-	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
-	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
-		  apps1Debug = appsFiltered1;
-		  apps2Debug = appsFiltered2;
-		  implausibilityTriggered = 1;
-//		  return 0;
+	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw) || APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
+		  pedalFaultTriggered = 1;
+		  return 0;
 	  }
 
 	  // APPS averaging
