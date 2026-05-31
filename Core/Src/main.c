@@ -67,12 +67,11 @@ CAN_HandleTypeDef hcan1;
 
 ETH_HandleTypeDef heth;
 
-I2C_HandleTypeDef hi2c1;
-
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
+/* USER CODE BEGIN PV */
 // Plausibility timers
 Timer appsTimer = {0};
 Timer bseTimer = {0};
@@ -81,8 +80,9 @@ char implausibilityTriggered = 0;
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 
-float bseThreshold = 	40.0; // activation thresholds for the brakes
-
+float bseThreshold = 	0.8; // activation thresholds for the brakes
+char RTDReady = 0;
+char brakesActivated = 0;
 float appsRaw;
 float bseRaw;
 float appsFiltered;
@@ -90,6 +90,9 @@ float appsFiltered1;
 float appsFiltered2;
 float torqueCommand;
 float bseGradient;
+
+float apps1Debug;
+float apps2Debug;
 
 float APPSData[2];
 uint32_t counter = 0;
@@ -100,7 +103,6 @@ uint32_t counter = 0;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ETH_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_ADC1_Init(void);
@@ -142,7 +144,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ETH_Init();
-  MX_I2C1_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   MX_ADC1_Init();
@@ -153,62 +154,89 @@ int main(void)
   // Activate Inverter and wait for inverter response
 //  while(!InverterCheck()) {}
 
-  // Wait for RTD checks
-  while (!RTDCheck(bseThreshold)) {}
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1) {
+	  // stops car running if Tractive Active Deactivates
+//	  if (!HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) { RTDReady = 0; }
+//
+	  // blocking loop, waiting for full rtd sequence (brakes, driver action, tractive active)
+	  while (RTDReady == 0) {
+		  if (RTDCheck(bseThreshold) == 1) { RTDReady = 1; }
+	  }
+
+	  if (HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)) { RecalibratePedals(); }
+
+
 	  counter++;
 
 	  // Pedals Collection
 	  ADC_APPSCollection(APPSData);
 	  bseRaw = ADC_BSECollection();
 
-	  // Filtering
-	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
-	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
-
 	  // Calculate APPS activation percentage
-	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
-	  appsFiltered2 = APPS_CalculateActivationPercentage(appsFiltered2, 2);
+	  appsFiltered1 = APPS_CalculateActivationPercentage(APPSData[0], 1);
+	  appsFiltered2 = APPS_CalculateActivationPercentage(APPSData[1], 2);
 
-	  if (counter > 100) {
-		  // Plausibility Functions
-		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
-		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
+	  // Plausibility Functions
+	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
+		  apps1Debug = appsFiltered1;
+		  apps2Debug = appsFiltered2;
+		  implausibilityTriggered = 1;
+//		  return 0;
 	  }
 
 	  // APPS averaging
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
-
-	  // Torque and Brakes Activation Percentage Calculation
-	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
-	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
+	  if (bseRaw >= 0.8) {
+		  brakesActivated = 1;
+	  }
+	  else {
+		  brakesActivated = 0;
+	  }
 
 	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
 	  if (implausibilityTriggered) {
-		  Inverter_DisableInverter();
-		  torqueCommand = 0;
-	  }
-
-      // Brakes Activated = 0.0 torque, brake lights activated
-	  if (bseGradient > bseThreshold) {
-		  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
-		  if (torqueCommand > 500.0) { implausibilityTriggered = 1; }
-		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
 		  torqueCommand = 0.0;
+	      Inverter_Process(torqueCommand);
+		  Inverter_DisableInverter();
+//		  return 0;
+
+		  if (appsFiltered >= 0.0f && appsFiltered <= 5.0f) {
+			  Inverter_EnableInverter();
+			  implausibilityTriggered = 0;
+		  }
 	  }
-	  // Brakes !Activated = calculated torque, brake lights not activated
 	  else {
-		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
-		  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
-		  if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
+		  if (appsFiltered <= 15.0) {
+			  torqueCommand = 0.0;
+		  }
+		  else {
+			  // Torque and Brakes Activation Percentage Calculation
+			  torqueCommand = 500.0 * ((appsFiltered - 15.0) / 100.0);
+		  }
+
+		  // Brakes Activated = 0.0 torque, brake lights activated
+		  if (brakesActivated == 1) {
+			  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
+			  if (appsFiltered >= 15.0) {
+				  implausibilityTriggered = 1;
+			  }
+			  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
+			  torqueCommand = 0.0;
+		  }
+		  // Brakes !Activated = calculated torque, brake lights not activated
+		  else {
+			  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
+		  }
 	  }
       Inverter_Process(torqueCommand);
 
-	  HAL_Delay(10);
+	  HAL_Delay(100);
   }
 
     /* USER CODE END WHILE */
@@ -238,14 +266,15 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 8;
   RCC_OscInitStruct.PLL.PLLN = 72;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 3;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -289,13 +318,14 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfDiscConversion = 1;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 2;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -305,9 +335,18 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Channel = ADC_CHANNEL_5;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -341,13 +380,13 @@ static void MX_ADC3_Init(void)
   hadc3.Instance = ADC3;
   hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc3.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc3.Init.ContinuousConvMode = DISABLE;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
   hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc3.Init.NbrOfConversion = 2;
+  hadc3.Init.NbrOfConversion = 1;
   hadc3.Init.DMAContinuousRequests = DISABLE;
   hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc3) != HAL_OK)
@@ -357,18 +396,9 @@ static void MX_ADC3_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_5;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
   sConfig.Channel = ADC_CHANNEL_6;
-  sConfig.Rank = ADC_REGULAR_RANK_2;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -479,54 +509,6 @@ static void MX_ETH_Init(void)
   /* USER CODE BEGIN ETH_Init 2 */
 
   /* USER CODE END ETH_Init 2 */
-
-}
-
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x00808CD2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -670,7 +652,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : Driver_Action_Pin */
   GPIO_InitStruct.Pin = Driver_Action_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(Driver_Action_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_PowerSwitchOn_Pin */
@@ -685,6 +667,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Tractive_Active_Pin */
+  GPIO_InitStruct.Pin = Tractive_Active_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Tractive_Active_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

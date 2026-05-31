@@ -14,6 +14,8 @@ extern ADC_HandleTypeDef hadc3;
 extern ADC_HandleTypeDef hadc1;
 
 
+void RecalibratePedals();
+
 // ADC Collection
 void ADC_APPSCollection(float *readings);
 float ADC_BSECollection();
@@ -34,6 +36,7 @@ typedef struct {
     uint32_t duration;
     uint8_t hasStarted;
     char hasFailed;
+    uint32_t failTick;
 } Timer;
 
 #endif
