@@ -80,7 +80,7 @@ char implausibilityTriggered = 0;
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t RxData[8];
 
-float bseThreshold = 	0.8; // activation thresholds for the brakes
+float bseThreshold = 	0.5; // activation thresholds for the brakes
 char RTDReady = 0;
 char brakesActivated = 0;
 float appsRaw;
@@ -153,6 +153,7 @@ int main(void)
   HAL_CAN_Start(&hcan1);
   // Activate Inverter and wait for inverter response
 //  while(!InverterCheck()) {}
+
   Inverter_Init();
 
   HAL_GPIO_WritePin(GPIOB, LD1_Pin, SET);
@@ -178,7 +179,11 @@ int main(void)
 //
 	  // blocking loop, waiting for full rtd sequence (brakes, driver action, tractive active)
 	  while (RTDReady == 0) {
-		  if (RTDCheck(bseThreshold) == 1) { RTDReady = 1; }
+		  if (RTDCheck(bseThreshold) == 1) {
+			  RTDReady = 1;
+			  Inverter_Init();
+			  break;
+		  }
 	  }
 
 	  if (HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)) { RecalibratePedals(); }
@@ -195,17 +200,17 @@ int main(void)
 	  appsFiltered2 = APPS_CalculateActivationPercentage(APPSData[1], 2);
 
 	  // Plausibility Functions
-	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
-	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
-		  apps1Debug = appsFiltered1;
-		  apps2Debug = appsFiltered2;
-		  implausibilityTriggered = 1;
-//		  return 0;
-	  }
+//	  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+//	  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) {
+//		  apps1Debug = appsFiltered1;
+//		  apps2Debug = appsFiltered2;
+//		  implausibilityTriggered = 1;
+////		  return 0;
+//	  }
 
 	  // APPS averaging
 	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
-	  if (bseRaw >= 0.8) {
+	  if (bseRaw >= bseThreshold) {
 		  brakesActivated = 1;
 	  }
 	  else {
@@ -214,15 +219,15 @@ int main(void)
 
 	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
 	  if (implausibilityTriggered) {
-		  torqueCommand = 0.0;
-	      Inverter_Process(torqueCommand);
-		  Inverter_DisableInverter();
-//		  return 0;
-
-		  if (appsFiltered >= 0.0f && appsFiltered <= 5.0f) {
-			  Inverter_EnableInverter();
-			  implausibilityTriggered = 0;
-		  }
+//		  torqueCommand = 0.0;
+//	      Inverter_Process(torqueCommand);
+//		  Inverter_DisableInverter();
+////		  return 0;
+//
+//		  if (appsFiltered >= 0.0f && appsFiltered <= 5.0f) {
+//			  Inverter_EnableInverter();
+//			  implausibilityTriggered = 0;
+//		  }
 	  }
 	  else {
 		  if (appsFiltered <= 15.0) {
@@ -230,15 +235,15 @@ int main(void)
 		  }
 		  else {
 			  // Torque and Brakes Activation Percentage Calculation
-			  torqueCommand = 500.0 * ((appsFiltered - 15.0) / 100.0);
+			  torqueCommand = 4000.0 * ((appsFiltered - 15.0) / 100.0);
 		  }
 
 		  // Brakes Activated = 0.0 torque, brake lights activated
 		  if (brakesActivated == 1) {
 			  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
-			  if (appsFiltered >= 15.0) {
-				  implausibilityTriggered = 1;
-			  }
+//			  if (appsFiltered >= 15.0) {
+//				  implausibilityTriggered = 1;
+//			  }
 			  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
 			  torqueCommand = 0.0;
 		  }
@@ -249,7 +254,7 @@ int main(void)
 	  }
       Inverter_Process(torqueCommand);
 
-	  HAL_Delay(100);
+	  HAL_Delay(30);
   }
 
     /* USER CODE END WHILE */
