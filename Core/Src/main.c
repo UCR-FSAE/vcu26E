@@ -168,6 +168,7 @@ int main(void)
 
   Inverter_Process(0.0);
 
+
   /* USER CODE END 2 */
 
   /* Infinite loop */

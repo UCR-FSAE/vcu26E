@@ -31,9 +31,7 @@ char RTDCheck(float bseThreshold) {
 //			!HAL_GPIO_ReadPin(Driver_Action_GPIO_Port, Driver_Action_Pin) &&
 //			HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)) {
 
-	if (!HAL_GPIO_ReadPin(Driver_Action_GPIO_Port, Driver_Action_Pin)
-			&& HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin)
-			&& bseRaw > bseThreshold) {
+	if (!HAL_GPIO_ReadPin(Driver_Action_GPIO_Port, Driver_Action_Pin) && HAL_GPIO_ReadPin(Tractive_Active_GPIO_Port, Tractive_Active_Pin) && bseRaw > bseThreshold) {
 	  uint32_t startTick = HAL_GetTick();
 	  HAL_GPIO_WritePin(GPIOB, LD2_Pin, SET);
 	  HAL_GPIO_WritePin(GPIOB, LD3_Pin, SET);
