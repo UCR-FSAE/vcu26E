@@ -10,22 +10,26 @@
 
 #include <main.h>
 
+// externs from main
 extern ADC_HandleTypeDef hadc3;
 extern ADC_HandleTypeDef hadc1;
+
+// defines
+#define MAX_TORQUE_COMMAND			4000.0 //nm
+#define DEADZONE					15 // %
 
 
 void RecalibratePedals();
 
 // ADC Collection
 void ADC_APPSCollection(float *readings);
-float ADC_BSECollection();
+void ADC_BSECollection(float *readings);
 
 // ADC Percentage Calculation Functions
 float APPS_CalculateActivationPercentage(float adc, char channel);
 
 // Torque Command Calculation Functions
 float Drive_CalculateTorqueCommand(float appsRaw);
-float Drive_CalculateBrakesActivation(float bseRaw);
 
 // Plausibility Check Functions
 #ifndef TIMER_STRUCT

@@ -11,7 +11,7 @@
 #include "main.h"
 
 char InverterCheck();
-char RTDCheck(float bseThreshold);
+char RTDCheck();
 
 
 #endif /* INC_RTD_H_ */
