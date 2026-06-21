@@ -32,7 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ADC_BUF_LEN 10  // if loop doesn't run increase this to like 1000
+#define ADC_BUF_LEN 4096  // if loop doesn't run increase this to like 1000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -78,17 +78,17 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
-volatile uint16_t ADC_BUF[ADC_BUF_LEN];
-volatile uint16_t ADC3_BUF[ADC_BUF_LEN];
-float voltage_PA6 = 0;
-float voltage_PF7 = 0;
-float voltage_PF8 = 0;
+CAN_RxHeaderTypeDef RxHeader;
+uint8_t RxData[8];
+
+volatile uint16_t BSE_BUFF[ADC_BUF_LEN];
+volatile uint16_t APPS_BUFF[ADC_BUF_LEN];
 
 uint16_t counter = 0;
-uint16_t bseTimer = 0;
-uint16_t appsTimer = 0;
-// Raw Data Arrays/Variables
-volatile uint16_t APPSData[16];
+
+Timer bseTimer = {0};
+Timer appsTimer = {0};
+
 volatile uint16_t bseRaw = 0;
 // Filtered and Processed Values
 float appsFiltered1 = 0;
@@ -96,8 +96,10 @@ float appsFiltered2 = 0;
 float appsFiltered = 0;
 float torqueCommand = 0;
 float bseGradient = 0;
+
 // Constants and Thresholds
-float bseThreshold = 500.0f;
+float bseThreshold = 40.0f;
+
 uint8_t implausibilityTriggered = 0;
 /* USER CODE END PV */
 
@@ -160,8 +162,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_CAN_Start(&hcan1);
   // HAL_TIM_Base_Start(&htim2);
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_BUF, ADC_BUF_LEN);
-  HAL_ADC_Start_DMA(&hadc3, (uint32_t*)ADC3_BUF, ADC_BUF_LEN);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)BSE_BUFF, ADC_BUF_LEN);
+  HAL_ADC_Start_DMA(&hadc3, (uint32_t*)APPS_BUFF, ADC_BUF_LEN);
 
   // Activate Inverter and wait for inverter response
   //while(!InverterCheck()) {}
@@ -178,51 +180,49 @@ int main(void)
 	  voltage_PF7 = ((float)ADC3_BUF[0] * 3.3f) / 4095.0f;
 	  voltage_PF8 = ((float)ADC3_BUF[0] * 3.3f) / 4095.0f;
 
-//	  // Pedals Collection
-//	  ADC_APPSCollection(APPSData);
-//	  bseRaw = ADC_BSECollection();
-//
-//	  // Filtering
-//	  appsFiltered1 = APPS_SlewFilter(APPSData[0], 1);
-//	  appsFiltered2 = APPS_SlewFilter(APPSData[1], 2);
-//
-//	  // Calculate APPS activation percentage
-//	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
-//	  appsFiltered2 = APPS_CalculateActivationPercentage(appsFiltered2, 2);
-//
-//	  if (counter > 100) {
-//		  // Plausibility Functions
-//		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
-//		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
-//	  }
-//
-//	  // APPS averaging
-//	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
-//
-//	  // Torque and Brakes Activation Percentage Calculation
-//	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
-//	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
-//
-//	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
-//	  if (implausibilityTriggered) {
-//		  Inverter_DisableInverter();
-//		  torqueCommand = 0;
-//	  }
-//
-//      // Brakes Activated = 0.0 torque, brake lights activated
-//	  if (bseGradient > bseThreshold) {
-//		  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
-//		  if (torqueCommand > 500.0) { implausibilityTriggered = 1; }
-//		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
-//		  torqueCommand = 0.0;
-//	  }
-//	  // Brakes !Activated = calculated torque, brake lights not activated
-//	  else {
-//		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
-//		  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
-//		  if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
-//	  }
-//      Inverter_Process(torqueCommand);
+	  // Make first
+	  bseRaw = BSE_BUFF[0];
+
+	  // Filtering
+	  appsFiltered1 = APPS_SlewFilter(APPS_BUFF[0], 1);
+	  appsFiltered2 = APPS_SlewFilter(APPS_BUFF[1], 2);
+
+	  // Calculate APPS activation percentage
+	  appsFiltered1 = APPS_CalculateActivationPercentage(appsFiltered1, 1);
+	  appsFiltered2 = APPS_CalculateActivationPercentage(appsFiltered2, 2);
+
+	  if (counter > 100) {
+		  // Plausibility Functions
+		  if (BSE_ImplausibilityCheck(&bseTimer, bseRaw)) { implausibilityTriggered = 1; }
+		  if (APPS_ImplausibilityCheck(&appsTimer, appsFiltered1, appsFiltered2)) { implausibilityTriggered = 1;}
+	  }
+
+	  // APPS averaging
+	  appsFiltered = (appsFiltered1 + appsFiltered2) / 2;
+
+	  // Torque and Brakes Activation Percentage Calculation
+	  torqueCommand = 2000.0 * (appsFiltered / 100.0);
+	  bseGradient = Drive_CalculateBrakesActivation(bseRaw);
+
+	  // Disables inverter and sets torqueCommand to 0 if an implausibility occurs
+	  if (implausibilityTriggered) {
+		  Inverter_DisableInverter();
+		  torqueCommand = 0;
+	  }
+
+      // Brakes Activated = 0.0 torque, brake lights activated
+	  if (bseGradient > bseThreshold) {
+		  // If torqueCommand is greater than 25% max pedal travel (pedal travel represented by calculated torque command) activate implausibility
+		  if (torqueCommand > 500.0) { implausibilityTriggered = 1; }
+		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, SET);
+		  torqueCommand = 0.0;
+	  } else {
+	      // Brakes !Activated = calculated torque, brake lights not activated
+		  HAL_GPIO_WritePin(Brake_Light_Active_GPIO_Port, Brake_Light_Active_Pin, RESET);
+		  if (torqueCommand <= 10.0) {torqueCommand = 0.0; }
+		  if (torqueCommand >= 2000.0) {torqueCommand = 2000.0; }
+	  }
+      Inverter_Process(torqueCommand);
 	  HAL_Delay(10);
   }
 
