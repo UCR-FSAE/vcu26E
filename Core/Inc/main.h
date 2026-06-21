@@ -33,7 +33,7 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 #include <inverter.h>		// Inverter and ADC collection functions
 #include <util.h>		// Math helper functions
-#include "rtd.h"
+#include <rtd.h>
 #include <stdbool.h>
 /* USER CODE END Includes */
 
@@ -121,6 +121,7 @@ void Error_Handler(void);
 #define Tractive_Active_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
+#define BRAKES_ACTIVATION_THRESHOLD	0.5
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
