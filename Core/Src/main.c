@@ -32,7 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ADC_BUF_LEN 4096  // if loop doesn't run increase this to like 1000
+#define ADC_BUF_LEN 4096  // if loop doesn't run increase this to a higher value
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
